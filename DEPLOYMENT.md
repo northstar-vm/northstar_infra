@@ -52,6 +52,22 @@ Portainer will initialize on first visit and ask you to create its admin user.
 
 File Browser will create its database on first run. Change its default credentials immediately inside the File Browser UI.
 
+If File Browser rejects credentials, read the generated password from logs:
+
+```bash
+docker compose logs filebrowser | grep -i password
+```
+
+If needed, reset the File Browser database volume and recreate the service:
+
+```bash
+docker rm -f northstar-filebrowser
+docker volume ls | grep filebrowser
+docker volume rm THE_FILEBROWSER_VOLUME_NAME
+docker compose up -d filebrowser
+docker compose logs filebrowser | grep -i password
+```
+
 ## 4. Configure Caddy
 
 Generate a Caddy Basic Auth hash on the VM:

@@ -3,7 +3,7 @@ services:
     image: portainer/portainer-ce:latest
     container_name: northstar-portainer
     restart: unless-stopped
-    command: -H unix:///var/run/docker.sock --base-url /docker
+    command: -H unix:///var/run/docker.sock --base-url /docker --http-enabled
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
