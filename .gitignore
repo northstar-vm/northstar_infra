@@ -11,6 +11,8 @@
 .env.*
 !.env.example
 secrets/
+northstar_actions
+northstar_actions.pub
 *.key
 *.pem
 *.crt

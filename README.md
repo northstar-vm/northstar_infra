@@ -11,7 +11,8 @@ Private infrastructure templates for the `northstar` Oracle VM. This repo manage
 - Shape: `VM.Standard.A1.Flex`, 4 OCPU, 24 GB RAM
 - Boot disk: about 200 GB
 - Server root: `/opt/northstar`
-- Existing Caddy proxy folder: `/opt/northstar/proxy`
+- Infra repo on VM: `/opt/northstar/infra`
+- Active Caddy proxy folder: `/opt/northstar/infra/proxy`
 - Existing Quizzy app: `/opt/northstar/apps/quizzy`
 - CV / portfolio app: `/opt/northstar/apps/cv`
 - Quizzy domain: `https://quizzy.attentionisallineed.xyz`
@@ -116,10 +117,11 @@ Cloudflare manages DNS for `attentionisallineed.xyz`. Hostinger is only the regi
 - `kay.ns.cloudflare.com`
 - `lex.ns.cloudflare.com`
 
-Create this DNS record:
+Create these DNS records:
 
 | Type | Name | Content | Proxy |
 | --- | --- | --- | --- |
+| `A` | `cv` | `130.61.33.233` | Enabled |
 | `A` | `northstar` | `130.61.33.233` | Enabled |
 
 Keep the existing Quizzy DNS record as-is.
