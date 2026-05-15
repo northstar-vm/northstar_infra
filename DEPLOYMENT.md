@@ -15,22 +15,28 @@ sudo chown -R ubuntu:ubuntu /opt/northstar/admin
 sudo chown -R ubuntu:ubuntu /opt/northstar/backups
 ```
 
-Copy this repo's files to `/opt/northstar` without mixing them into `/opt/northstar/apps/quizzy`.
+This repo is cloned to `/opt/northstar/infra`. App source repositories live separately in `/opt/northstar/apps`.
 
 Expected layout:
 
 ```text
 /opt/northstar/
-  admin/
-    docker-compose.yml
-    portal/
-      index.html
-    files/
+  infra/
+    admin/
+      docker-compose.yml
+      portal/
+        index.html
+    apps/
+      cv/
+        docker-compose.yml
+    proxy/
+      docker-compose.yml
+      Caddyfile
   proxy/
-    docker-compose.yml
-    Caddyfile
+    old proxy location, no longer used after infra proxy is active
   apps/
     quizzy/
+    cv/
 ```
 
 ## 2. Create the Admin Docker Network
@@ -43,10 +49,39 @@ docker network create northstar_web
 
 If it already exists, Docker will say so; that is fine.
 
-## 3. Start Admin Services
+## 3. Deploy the CV Site
+
+Clone the portfolio website into the apps directory:
 
 ```bash
-cd /opt/northstar/admin
+sudo mkdir -p /opt/northstar/apps
+sudo chown -R ubuntu:ubuntu /opt/northstar/apps
+
+cd /opt/northstar/apps
+git clone https://github.com/cruetto/PortfolioWebsite.git cv
+```
+
+Start the CV Nginx service from this infra repo:
+
+```bash
+cd /opt/northstar/infra/apps/cv
+docker compose up -d
+```
+
+To update the CV site later:
+
+```bash
+cd /opt/northstar/apps/cv
+git pull
+
+cd /opt/northstar/infra/apps/cv
+docker compose up -d
+```
+
+## 4. Start Admin Services
+
+```bash
+cd /opt/northstar/infra/admin
 docker compose up -d
 ```
 
@@ -81,7 +116,7 @@ docker compose up -d filebrowser
 docker compose logs filebrowser | grep -i password
 ```
 
-## 4. Configure Caddy
+## 5. Configure Caddy
 
 Generate a Caddy Basic Auth hash on the VM:
 
@@ -102,7 +137,16 @@ ADMIN_PASSWORD_HASH_FROM_CADDY
 
 with the real username and generated hash on the VM only.
 
-## 5. Start or Reload Caddy
+The CV route should point to the CV Nginx service:
+
+```caddy
+cv.attentionisallineed.xyz {
+	encode zstd gzip
+	reverse_proxy cv-web:80
+}
+```
+
+## 6. Start or Reload Caddy
 
 If Caddy is already running with Docker Compose:
 
@@ -118,20 +162,25 @@ If the reload fails, inspect the logs:
 docker compose logs caddy
 ```
 
-## 6. Cloudflare
+## 7. Cloudflare
 
-Add this DNS record:
+Add these DNS records:
 
 ```text
 Type: A
 Name: northstar
 Content: 130.61.33.233
 Proxy status: Proxied
+
+Type: A
+Name: cv
+Content: 130.61.33.233
+Proxy status: Proxied
 ```
 
 Keep the existing Quizzy record working.
 
-## 7. Atlas and OAuth Checks
+## 8. Atlas and OAuth Checks
 
 MongoDB Atlas:
 
@@ -147,7 +196,7 @@ Google OAuth for Quizzy:
 
 Do not store MongoDB URIs or OAuth secrets in this repo.
 
-## 8. Oracle Cost Safety
+## 9. Oracle Cost Safety
 
 Recommended guardrails:
 
@@ -159,11 +208,12 @@ Recommended guardrails:
 
 The current VM uses the Always Free A1 maximum: 4 OCPU and 24 GB RAM.
 
-## 9. Verify
+## 10. Verify
 
 Open:
 
 - `https://quizzy.attentionisallineed.xyz`
+- `https://cv.attentionisallineed.xyz`
 - `https://northstar.attentionisallineed.xyz`
 - `https://northstar.attentionisallineed.xyz/docker/`
 - `https://northstar.attentionisallineed.xyz/files/`

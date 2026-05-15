@@ -13,7 +13,9 @@ Private infrastructure templates for the `northstar` Oracle VM. This repo manage
 - Server root: `/opt/northstar`
 - Existing Caddy proxy folder: `/opt/northstar/proxy`
 - Existing Quizzy app: `/opt/northstar/apps/quizzy`
+- CV / portfolio app: `/opt/northstar/apps/cv`
 - Quizzy domain: `https://quizzy.attentionisallineed.xyz`
+- CV domain: `https://cv.attentionisallineed.xyz`
 - Admin portal domain: `https://northstar.attentionisallineed.xyz`
 
 ## Existing App
@@ -34,6 +36,26 @@ Current app details:
 - Caddy already proxies `quizzy.attentionisallineed.xyz` to the working app web service
 
 Keep that working Caddy route intact when adding the northstar admin route.
+
+## Portfolio / CV App
+
+The CV site is deployed from:
+
+```text
+cruetto/PortfolioWebsite
+```
+
+It is served as a static Nginx site from:
+
+```text
+/opt/northstar/apps/cv
+```
+
+Public URL:
+
+```text
+https://cv.attentionisallineed.xyz
+```
 
 ## What This Adds
 

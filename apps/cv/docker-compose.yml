@@ -1,0 +1,13 @@
+services:
+  cv-web:
+    image: nginx:1.27-alpine
+    container_name: northstar-cv-web
+    restart: unless-stopped
+    volumes:
+      - /opt/northstar/apps/cv:/usr/share/nginx/html:ro
+    networks:
+      - northstar_web
+
+networks:
+  northstar_web:
+    external: true

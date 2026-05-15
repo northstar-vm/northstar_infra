@@ -10,6 +10,11 @@ quizzy.attentionisallineed.xyz {
 	reverse_proxy EXISTING_WORKING_QUIZZY_UPSTREAM
 }
 
+cv.attentionisallineed.xyz {
+	encode zstd gzip
+	reverse_proxy cv-web:80
+}
+
 northstar.attentionisallineed.xyz {
 	basic_auth {
 		ADMIN_USERNAME ADMIN_PASSWORD_HASH_FROM_CADDY
