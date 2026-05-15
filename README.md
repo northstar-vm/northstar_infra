@@ -43,15 +43,29 @@ Keep that working Caddy route intact when adding the northstar admin route.
 
 The admin domain is protected with Caddy Basic Auth. Portainer and File Browser keep their own application logins as a second layer.
 
-## File Drop Zone
+## File Browser Scope
 
-File Browser is configured to expose a VM-local folder:
+File Browser is configured to expose the VM filesystem at:
 
 ```text
-/opt/northstar/admin/files
+/
 ```
 
-Use `https://northstar.attentionisallineed.xyz/files/` to upload, download, rename, and organize files through the browser. This avoids exposing the whole VM filesystem.
+Inside File Browser this appears under `/srv`, so the main server folder is:
+
+```text
+/srv/opt/northstar
+```
+
+This gives browser-based write access to the server filesystem. Keep the northstar domain protected with Caddy Basic Auth, keep File Browser's own login enabled, and avoid editing system paths such as `/srv/etc`, `/srv/usr`, `/srv/boot`, `/srv/var/lib/docker`, and Docker volume internals unless you intentionally need to.
+
+Good places for manual files:
+
+```text
+/srv/opt/northstar/admin/files
+/srv/opt/northstar/backups
+/srv/home/ubuntu
+```
 
 ## Secrets
 

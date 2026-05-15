@@ -10,7 +10,9 @@ This repo should become the separate private GitHub repo `northstar-infra`. Do n
 sudo mkdir -p /opt/northstar/proxy
 sudo mkdir -p /opt/northstar/admin/portal
 sudo mkdir -p /opt/northstar/admin/files
+sudo mkdir -p /opt/northstar/backups
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin
+sudo chown -R ubuntu:ubuntu /opt/northstar/backups
 ```
 
 Copy this repo's files to `/opt/northstar` without mixing them into `/opt/northstar/apps/quizzy`.
@@ -51,6 +53,17 @@ docker compose up -d
 Portainer will initialize on first visit and ask you to create its admin user.
 
 File Browser will create its database on first run. Change its default credentials immediately inside the File Browser UI.
+
+File Browser mounts the VM root filesystem at `/srv` in the browser. This is intentionally powerful: use it for operational edits and file management, but avoid changing system directories unless you know why.
+
+Useful browser paths:
+
+```text
+/srv/opt/northstar
+/srv/opt/northstar/admin/files
+/srv/opt/northstar/backups
+/srv/home/ubuntu
+```
 
 If File Browser rejects credentials, read the generated password from logs:
 
