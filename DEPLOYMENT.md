@@ -78,6 +78,12 @@ cd /opt/northstar/infra/apps/cv
 docker compose up -d
 ```
 
+Or use the deployment script:
+
+```bash
+bash /opt/northstar/infra/scripts/deploy-cv.sh
+```
+
 ## 4. Start Admin Services
 
 ```bash
@@ -180,6 +186,8 @@ Proxy status: Proxied
 
 Keep the existing Quizzy record working.
 
+`quizzy`, `cv`, and `northstar` can all be Cloudflare proxied because Caddy serves HTTPS on the VM. If Cloudflare shows a TLS error such as 525 or 526, check Cloudflare SSL/TLS mode and use `Full (strict)` with Caddy's valid certificates, or temporarily switch the record back to `DNS only` while debugging.
+
 ## 8. Atlas and OAuth Checks
 
 MongoDB Atlas:
@@ -223,3 +231,71 @@ Expected security layers:
 - Northstar domain asks for Caddy Basic Auth first.
 - Portainer asks for its own login at `/docker/`.
 - File Browser asks for its own login at `/files/`.
+
+## 11. CI/CD Setup
+
+The VM-side scripts are:
+
+```text
+/opt/northstar/infra/scripts/deploy-cv.sh
+/opt/northstar/infra/scripts/deploy-infra.sh
+```
+
+Create a dedicated SSH key for GitHub Actions on your local machine:
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-northstar" -f ./northstar_actions -N ""
+```
+
+Add the public key to the VM:
+
+```bash
+cat ./northstar_actions.pub
+```
+
+Copy the printed public key, then on the VM append it to:
+
+```bash
+nano /home/ubuntu/.ssh/authorized_keys
+```
+
+Paste the public key on a new line, save, then ensure permissions:
+
+```bash
+chmod 700 /home/ubuntu/.ssh
+chmod 600 /home/ubuntu/.ssh/authorized_keys
+```
+
+In GitHub repository settings, add these Actions secrets:
+
+```text
+NORTHSTAR_HOST=130.61.33.233
+NORTHSTAR_USER=ubuntu
+NORTHSTAR_SSH_KEY=<contents of ./northstar_actions private key>
+```
+
+For CV CI/CD:
+
+```text
+Copy github-actions-templates/deploy-cv.yml
+to cruetto/PortfolioWebsite/.github/workflows/deploy-cv.yml
+```
+
+Then every push to `PortfolioWebsite/main` deploys:
+
+```text
+GitHub Actions -> SSH northstar -> git pull /opt/northstar/apps/cv -> restart CV Nginx
+```
+
+For infra CI/CD:
+
+```text
+Copy github-actions-templates/deploy-infra.yml
+to this repo as .github/workflows/deploy-infra.yml
+```
+
+Then every push to `northstar_infra/main` deploys:
+
+```text
+GitHub Actions -> SSH northstar -> git pull /opt/northstar/infra -> restart infra services
+```

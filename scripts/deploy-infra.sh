@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INFRA_DIR="/opt/northstar/infra"
+
+cd "$INFRA_DIR"
+git pull --ff-only
+
+docker network inspect northstar_web >/dev/null 2>&1 || docker network create northstar_web
+
+sudo mkdir -p /opt/northstar/admin/files /opt/northstar/backups /opt/northstar/apps
+sudo chown -R ubuntu:ubuntu /opt/northstar/admin /opt/northstar/backups /opt/northstar/apps
+
+cd "$INFRA_DIR/admin"
+docker compose up -d
+
+if [ -d /opt/northstar/apps/cv/.git ]; then
+  cd "$INFRA_DIR/apps/cv"
+  docker compose up -d
+fi
+
+cd "$INFRA_DIR/proxy"
+docker compose up -d
+docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || true
+
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"

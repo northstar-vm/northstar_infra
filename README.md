@@ -57,6 +57,12 @@ Public URL:
 https://cv.attentionisallineed.xyz
 ```
 
+CI/CD target:
+
+- Pushes to `cruetto/PortfolioWebsite` should run the `deploy-cv.yml` workflow.
+- That workflow SSHes into northstar and runs `/opt/northstar/infra/scripts/deploy-cv.sh`.
+- The script updates `/opt/northstar/apps/cv` and restarts the CV Nginx container.
+
 ## What This Adds
 
 - `https://northstar.attentionisallineed.xyz/` - static admin portal page
@@ -118,6 +124,8 @@ Create this DNS record:
 
 Keep the existing Quizzy DNS record as-is.
 
+`quizzy`, `cv`, and `northstar` can all be Cloudflare proxied while Caddy is serving valid HTTPS certificates on the VM. If Cloudflare shows a TLS error, check Cloudflare SSL/TLS mode before changing the VM.
+
 ## External Services
 
 MongoDB Atlas:
@@ -137,3 +145,24 @@ Oracle cost guardrails:
 - A1 memory quota: `standard-a1-memory-count` set to `24`
 - A2 quotas set to `0`
 - Budget alert enabled
+
+## CI/CD
+
+Workflow templates live in:
+
+```text
+github-actions-templates/
+```
+
+Use them like this:
+
+- Copy `deploy-cv.yml` into `cruetto/PortfolioWebsite/.github/workflows/deploy-cv.yml`.
+- Optionally copy `deploy-infra.yml` into this repo as `.github/workflows/deploy-infra.yml` after GitHub secrets are configured.
+
+Both workflows require these repository secrets:
+
+```text
+NORTHSTAR_HOST=130.61.33.233
+NORTHSTAR_USER=ubuntu
+NORTHSTAR_SSH_KEY=<private SSH key allowed in /home/ubuntu/.ssh/authorized_keys>
+```

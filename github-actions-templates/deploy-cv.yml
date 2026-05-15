@@ -1,0 +1,20 @@
+name: Deploy CV to Northstar
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy CV over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.NORTHSTAR_HOST }}
+          username: ${{ secrets.NORTHSTAR_USER }}
+          key: ${{ secrets.NORTHSTAR_SSH_KEY }}
+          script: |
+            bash /opt/northstar/infra/scripts/deploy-cv.sh
