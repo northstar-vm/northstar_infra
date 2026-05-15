@@ -30,3 +30,6 @@ filebrowser.db
 # Logs
 *.log
 logs/
+
+# Real VM-only Caddy config
+proxy/Caddyfile
