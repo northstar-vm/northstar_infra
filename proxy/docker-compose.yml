@@ -1,0 +1,26 @@
+services:
+  caddy:
+    image: caddy:2
+    container_name: northstar-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - ../admin/portal:/srv/northstar-admin:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - northstar_web
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  northstar_web:
+    external: true

@@ -1,0 +1,36 @@
+{
+	email admin@example.com
+}
+
+# Existing Quizzy app.
+# Keep your current working block here when applying this template.
+# The app compose has backend, frontend, and web services; the web/nginx service
+# exposes the app on server port 8080 in the current deployment.
+quizzy.attentionisallineed.xyz {
+	reverse_proxy EXISTING_WORKING_QUIZZY_UPSTREAM
+}
+
+northstar.attentionisallineed.xyz {
+	basic_auth {
+		ADMIN_USERNAME ADMIN_PASSWORD_HASH_FROM_CADDY
+	}
+
+	encode zstd gzip
+
+	handle /docker/* {
+		reverse_proxy portainer:9000
+	}
+
+	redir /docker /docker/
+
+	handle /files/* {
+		reverse_proxy filebrowser:80
+	}
+
+	redir /files /files/
+
+	handle {
+		root * /srv/northstar-admin
+		file_server
+	}
+}

@@ -1,0 +1,30 @@
+# Local/editor files
+.DS_Store
+.agents/
+.codex/
+.idea/
+.vscode/
+*.swp
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.crt
+
+# Runtime data
+admin/data/
+admin/files/
+proxy/data/
+proxy/config/
+caddy_data/
+caddy_config/
+portainer_data/
+filebrowser.db
+
+# Logs
+*.log
+logs/

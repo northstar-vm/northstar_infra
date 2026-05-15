@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Northstar Admin</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f2ea;
+        --fg: #17211b;
+        --muted: #59635d;
+        --line: #d8d0c3;
+        --panel: #fffaf1;
+        --accent: #0b6b75;
+        --accent-2: #8d3f2f;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111513;
+          --fg: #edf1ec;
+          --muted: #aeb8b0;
+          --line: #323a35;
+          --panel: #1a201d;
+          --accent: #62c8d1;
+          --accent-2: #ef9a7e;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+
+      main {
+        width: min(920px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 56px 0;
+      }
+
+      header {
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2.25rem, 6vw, 4.25rem);
+        line-height: 1;
+        font-weight: 750;
+      }
+
+      p {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.6;
+        max-width: 680px;
+      }
+
+      nav {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      a {
+        min-height: 136px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:focus-visible {
+        border-color: var(--accent);
+        outline: none;
+      }
+
+      .label {
+        font-size: 0.84rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .title {
+        font-size: 1.45rem;
+        font-weight: 720;
+      }
+
+      .hint {
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      footer {
+        margin-top: 32px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      strong {
+        color: var(--accent-2);
+        font-weight: 720;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Northstar</h1>
+        <p>Private admin portal for the northstar VM. This page is protected by Caddy Basic Auth before any tool-specific login appears.</p>
+      </header>
+
+      <nav aria-label="Admin tools">
+        <a href="/docker/">
+          <span class="label">Containers</span>
+          <span class="title">Portainer</span>
+          <span class="hint">Manage Docker services, volumes, networks, and container logs.</span>
+        </a>
+
+        <a href="/files/">
+          <span class="label">Files</span>
+          <span class="title">File Browser</span>
+          <span class="hint">Upload and organize files in the VM drop zone.</span>
+        </a>
+      </nav>
+
+      <footer>
+        VM drop zone: <strong>/opt/northstar/admin/files</strong>
+      </footer>
+    </main>
+  </body>
+</html>

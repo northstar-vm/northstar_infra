@@ -1,0 +1,31 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: northstar-portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock --base-url /docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - northstar_web
+
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: northstar-filebrowser
+    restart: unless-stopped
+    user: "1000:1000"
+    command: --address 0.0.0.0 --port 80 --root /srv --database /database/filebrowser.db --baseURL /files
+    volumes:
+      - ./files:/srv
+      - filebrowser_database:/database
+    networks:
+      - northstar_web
+
+volumes:
+  portainer_data:
+  filebrowser_database:
+
+networks:
+  northstar_web:
+    external: true
