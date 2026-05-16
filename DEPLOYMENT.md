@@ -182,6 +182,51 @@ The backup script keeps 7 days of `minecraft-world-*.tar.gz` archives by default
 RETENTION_DAYS=30 bash /opt/northstar/infra/scripts/backup-minecraft.sh
 ```
 
+Verify cron is installed:
+
+```bash
+crontab -l
+```
+
+Verify backup output and disk usage:
+
+```bash
+ls -lh /opt/northstar/backups/minecraft
+du -sh /opt/northstar/backups/minecraft
+du -sh /opt/northstar/apps/minecraft/data
+```
+
+If a backup fails partway through, delete the partial archive before trusting the folder contents.
+
+To pause Minecraft for a long time:
+
+```bash
+bash /opt/northstar/infra/scripts/backup-minecraft.sh
+
+cd /opt/northstar/infra/apps/minecraft
+docker compose down
+
+crontab -e
+```
+
+In crontab, comment the Minecraft backup line:
+
+```cron
+# 0 */8 * * * /bin/bash /opt/northstar/infra/scripts/backup-minecraft.sh >> /opt/northstar/backups/minecraft/backup.log 2>&1
+```
+
+To resume later:
+
+```bash
+cd /opt/northstar/infra/apps/minecraft
+docker compose up -d
+docker compose logs -f minecraft
+
+crontab -e
+```
+
+Then uncomment the backup cron line.
+
 Players connect to:
 
 ```text

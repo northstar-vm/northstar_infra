@@ -9,6 +9,7 @@ The user is hosting multiple personal/project services on one Oracle Cloud VM na
 - `quizzy.attentionisallineed.xyz` - current Quizzy / IndividualTeacher frontend and backend.
 - `cv.attentionisallineed.xyz` - static CV / portfolio website.
 - `northstar.attentionisallineed.xyz` - private admin portal with Docker and file-manager tools.
+- `mc.attentionisallineed.xyz` - Minecraft Java Edition Paper server.
 - `attentionisallineed.xyz` - root domain should redirect to CV, or otherwise be handled by Caddy.
 
 The user wants to keep this cheap/free-tier friendly, organized, Docker-based, and easy to manage through GitHub Actions where reasonable.
@@ -74,12 +75,15 @@ Current relevant Cloudflare DNS records:
 ```text
 A      attentionisallineed.xyz  130.61.33.233  Proxied
 A      cv                       130.61.33.233  Proxied
+A      mc                       130.61.33.233  DNS only
 A      northstar                130.61.33.233  Proxied
 A      quizzy                   130.61.33.233  Proxied
 CNAME  www                      attentionisallineed.xyz  Proxied
 ```
 
 If Cloudflare shows TLS errors, check Cloudflare SSL/TLS mode and Caddy logs before changing DNS randomly.
+
+Important: `mc` must stay DNS-only / gray-cloud. Minecraft uses raw TCP on port `25565`; it does not go through the normal Cloudflare HTTP proxy or Caddy.
 
 ## Oracle Network / Firewall
 
@@ -88,12 +92,14 @@ OCI ingress rules added:
 - TCP 22 for SSH.
 - TCP 80 for HTTP.
 - TCP 443 for HTTPS.
+- TCP 25565 for Minecraft Java Edition.
 
 Ubuntu `ufw` was inactive earlier, but rules were added:
 
 ```bash
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
+sudo ufw allow 25565/tcp
 sudo ufw status
 ```
 
@@ -133,8 +139,10 @@ Current observed `/opt/northstar` layout:
 │   └── files
 ├── apps
 │   ├── cv
+│   ├── minecraft
 │   └── quizzy
 ├── backups
+│   └── minecraft
 ├── infra
 └── proxy   # old proxy folder; should be archived if not already moved
 ```
@@ -147,8 +155,10 @@ Preferred final layout:
 │   └── files
 ├── apps
 │   ├── cv
+│   ├── minecraft
 │   └── quizzy
 ├── backups
+│   └── minecraft
 └── infra
 ```
 
@@ -179,6 +189,7 @@ Expected important containers:
 northstar-caddy         caddy:2
 northstar-cv-web        nginx:1.27-alpine
 northstar-filebrowser   filebrowser/filebrowser:latest
+northstar-minecraft     itzg/minecraft-server:java25
 northstar-portainer     portainer/portainer-ce:latest
 quizzy-backend-1        quizzy-backend
 quizzy-frontend-1       quizzy-frontend
@@ -299,6 +310,101 @@ Test:
 curl -I https://cv.attentionisallineed.xyz
 curl -s "https://cv.attentionisallineed.xyz/javascript/main.js?v=$(date +%s)" | grep -n "helloSubtitle"
 ```
+
+### Minecraft Java Server
+
+Public address:
+
+```text
+mc.attentionisallineed.xyz
+```
+
+Service:
+
+```text
+Minecraft Java Edition, Paper, Dockerized with itzg/minecraft-server:java25
+```
+
+Important runtime choices:
+
+- Compose file: `/opt/northstar/infra/apps/minecraft/docker-compose.yml`.
+- VM-only env file: `/opt/northstar/infra/apps/minecraft/.env`.
+- World/server data: `/opt/northstar/apps/minecraft/data`.
+- Backups: `/opt/northstar/backups/minecraft`.
+- Port: `25565/tcp`, published directly by Docker.
+- `online-mode=true`; only authenticated licensed Java Edition accounts can join.
+- Whitelist is intentionally not enabled right now.
+- RCON is available inside the container for `docker exec ... rcon-cli`, but port `25575` is not published to the internet.
+- Current compose uses `restart: "no"` to avoid restart loops during setup/debugging. Once stable, it can be changed to `restart: unless-stopped`.
+
+Start / inspect:
+
+```bash
+cd /opt/northstar/infra/apps/minecraft
+docker compose up -d
+docker compose ps
+docker compose logs -f minecraft
+```
+
+Stop following logs without stopping the server:
+
+```text
+Ctrl+C
+```
+
+Stop the server:
+
+```bash
+cd /opt/northstar/infra/apps/minecraft
+docker compose down
+```
+
+Make a player operator:
+
+```bash
+docker exec -i northstar-minecraft rcon-cli op YourMinecraftUsername
+```
+
+Check whether the port is published:
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep minecraft
+```
+
+Expected port includes:
+
+```text
+0.0.0.0:25565->25565/tcp
+```
+
+Backups:
+
+```bash
+bash /opt/northstar/infra/scripts/backup-minecraft.sh
+ls -lh /opt/northstar/backups/minecraft
+```
+
+Backup behavior:
+
+- Backups are full compressed `.tar.gz` archives, not incremental.
+- Script tells the server `save-off`, `save-all flush`, archives the data folder, then `save-on`.
+- Script uses `sudo tar` because some container-owned files are not readable by plain `ubuntu`.
+- Default retention is 7 days.
+- Recommended cron schedule is every 8 hours, about 21 backups total:
+
+```cron
+0 */8 * * * /bin/bash /opt/northstar/infra/scripts/backup-minecraft.sh >> /opt/northstar/backups/minecraft/backup.log 2>&1
+```
+
+Cron needs this sudoers rule for unattended backups:
+
+```bash
+echo 'ubuntu ALL=(root) NOPASSWD: /usr/bin/tar' | sudo tee /etc/sudoers.d/northstar-minecraft-backup
+sudo chmod 440 /etc/sudoers.d/northstar-minecraft-backup
+sudo visudo -cf /etc/sudoers.d/northstar-minecraft-backup
+```
+
+If stopping Minecraft for a long time, make one final backup, stop the container, and comment out the cron line. Otherwise cron will keep creating repeated backups of the same stopped world and will still delete archives older than the retention window.
 
 ### Admin Portal
 
@@ -479,6 +585,8 @@ secrets/
 northstar_actions
 northstar_actions.pub
 proxy/Caddyfile
+apps/minecraft/.env
+apps/minecraft/data/
 ```
 
 On VM, this is good:
@@ -495,6 +603,65 @@ Expected:
 ```
 
 That means real Caddyfile is ignored correctly.
+
+Minecraft VM-only runtime files should also be ignored:
+
+```text
+apps/minecraft/.env
+apps/minecraft/data/
+```
+
+The real Minecraft world data lives at `/opt/northstar/apps/minecraft/data`, not inside the infra repo.
+
+## Local Linux Minecraft Client
+
+The user plays from Linux and uses SKLauncher through a Firejail sandbox.
+
+Local launcher/security setup:
+
+- Wrapper: `/home/vallutto/.local/bin/minecraft-secure`.
+- Desktop shortcut: `/home/vallutto/Desktop/Minecraft-Secure.desktop`.
+- Sandbox/private home: `/home/vallutto/.safe-minecraft`.
+- Launcher jar: `/home/vallutto/.safe-minecraft/SKlauncher-3.2.18.jar`.
+- Java: `/usr/lib/jvm/java-25-openjdk-amd64/bin/java`.
+- GPU: NVIDIA PRIME offload env vars are set in the wrapper.
+
+The wrapper intentionally keeps SKLauncher/Minecraft inside the Firejail private home so it does not casually access the user's normal home files.
+
+Useful local checks:
+
+```bash
+~/.local/bin/minecraft-secure
+nvidia-smi
+java -version
+```
+
+In Minecraft F3, the client was confirmed to show:
+
+```text
+Sodium Renderer
+ImmediatelyFast
+Java 25
+NVIDIA GeForce RTX 3050 Ti
+Fabric 26.1.2
+```
+
+Client mods live inside the sandbox:
+
+```text
+/home/vallutto/.safe-minecraft/.minecraft/mods
+```
+
+Recommended client-side performance stack already discussed:
+
+- Sodium.
+- ImmediatelyFast.
+- Entity Culling.
+- FerriteCore.
+- Dynamic FPS.
+- Fabric API when required.
+
+Iris is optional and mainly for shaders; it is not needed for performance.
 
 ## MongoDB Atlas
 
@@ -724,4 +891,3 @@ Expected:
 - Do not remove `0.0.0.0/0` from Atlas until VM-specific Atlas access is verified, but remove it once verified.
 - Do not delete `/opt/northstar/proxy`; archive it first.
 - Do not use File Browser for SSH key management if permissions are confusing; use terminal.
-
