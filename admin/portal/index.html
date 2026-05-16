@@ -240,33 +240,9 @@
         font-size: 0.94rem;
       }
 
-      .log-actions {
-        margin-top: 14px;
-        display: flex;
-        justify-content: flex-end;
-      }
-
-      .text-link {
-        min-height: 0;
-        display: inline-flex;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        color: var(--accent);
-        font-size: 0.95rem;
-        font-weight: 700;
-        text-decoration: none;
-      }
-
-      .text-link:hover,
-      .text-link:focus-visible {
-        color: var(--accent-2);
-        outline: none;
-      }
-
       .logs {
-        max-height: 280px;
+        height: min(58vh, 720px);
+        min-height: 420px;
         margin: 16px 0 0;
         padding: 12px;
         overflow: auto;
@@ -276,6 +252,32 @@
         color: var(--fg);
         font: 0.85rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         white-space: pre-wrap;
+      }
+
+      .player-history {
+        width: 100%;
+        margin-top: 16px;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+      }
+
+      .player-history th,
+      .player-history td {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+
+      .player-history th {
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .player-history th:not(:first-child),
+      .player-history td:not(:first-child) {
+        text-align: right;
       }
 
       @media (max-width: 680px) {
@@ -365,9 +367,20 @@
             <span class="metric-value" id="minecraft-count">--/--</span>
           </div>
           <ul class="players" id="minecraft-players"></ul>
-          <div class="log-actions">
-            <a class="text-link" href="/status/minecraft/latest.log" target="_blank" rel="noreferrer">Open full latest.log</a>
-          </div>
+          <table class="player-history">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>First login</th>
+                <th>Last login</th>
+              </tr>
+            </thead>
+            <tbody id="minecraft-player-history">
+              <tr>
+                <td colspan="3">Loading players...</td>
+              </tr>
+            </tbody>
+          </table>
           <pre class="logs" id="minecraft-logs">Loading logs...</pre>
         </div>
       </section>
@@ -443,7 +456,9 @@
         const status = minecraft.status || {};
         const players = status.sample || [];
         const logs = minecraft.logs || [];
+        const playerHistory = minecraft.players || [];
         const playersNode = document.getElementById("minecraft-players");
+        const historyNode = document.getElementById("minecraft-player-history");
 
         document.getElementById("minecraft-count").textContent =
           status.reachable ? `${status.online}/${status.max}` : "--/--";
@@ -463,6 +478,26 @@
           const item = document.createElement("li");
           item.textContent = status.reachable ? "No players online" : "Offline";
           playersNode.appendChild(item);
+        }
+
+        historyNode.replaceChildren();
+        if (playerHistory.length) {
+          for (const player of playerHistory) {
+            const row = document.createElement("tr");
+            for (const value of [player.name, player.first_login, player.last_login]) {
+              const cell = document.createElement("td");
+              cell.textContent = value;
+              row.appendChild(cell);
+            }
+            historyNode.appendChild(row);
+          }
+        } else {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 3;
+          cell.textContent = "No player login history in latest.log";
+          row.appendChild(cell);
+          historyNode.appendChild(row);
         }
 
         document.getElementById("minecraft-logs").textContent =

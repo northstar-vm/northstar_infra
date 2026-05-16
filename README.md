@@ -76,7 +76,7 @@ CI/CD target:
 
 The admin domain is protected with Caddy Basic Auth. Portainer and File Browser keep their own application logins as a second layer.
 
-The portal home page shows CPU/RAM bars with browser-side rolling sparklines, a root disk bar, and a read-only Minecraft panel with player count, sampled player names, recent raw log lines, and a private full `latest.log` link. The status API is served by an internal Docker container and is not published directly to the internet.
+The portal home page shows CPU/RAM bars with browser-side rolling sparklines, a root disk bar, and a read-only Minecraft panel with player count, sampled player names, player history from `latest.log`, and a large scrollable raw log viewer. The status API is served by an internal Docker container and is not published directly to the internet.
 
 ## File Browser Scope
 

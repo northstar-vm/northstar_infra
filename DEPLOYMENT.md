@@ -246,7 +246,7 @@ Portainer will initialize on first visit and ask you to create its admin user.
 
 File Browser will create its database on first run. Change its default credentials immediately inside the File Browser UI.
 
-The admin status service reads host CPU, RAM, and root disk usage read-only, queries Minecraft's normal server-list status, and reads Minecraft logs from a read-only mount. The portal renders CPU/RAM bars with browser-side rolling sparklines, a disk bar, and a read-only Minecraft panel with recent raw logs plus a private full `latest.log` link. It is only reachable through the Caddy-protected northstar domain.
+The admin status service reads host CPU, RAM, and root disk usage read-only, queries Minecraft's normal server-list status, and reads Minecraft logs from a read-only mount. The portal renders CPU/RAM bars with browser-side rolling sparklines, a disk bar, and a read-only Minecraft panel with player history plus a large scrollable raw log viewer. It is only reachable through the Caddy-protected northstar domain.
 
 Check the status service:
 

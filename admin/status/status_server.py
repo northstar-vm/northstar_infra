@@ -2,6 +2,7 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+import re
 import socket
 import struct
 import time
@@ -14,6 +15,7 @@ MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
 MINECRAFT_LOG_PATH = "/minecraft-logs/latest.log"
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
+PLAYER_LOGIN_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
 
 
 def bytes_to_gib(value):
@@ -191,28 +193,48 @@ def query_minecraft_status():
         }
 
 
-def read_minecraft_log():
+def read_full_minecraft_log():
     if not os.path.exists(MINECRAFT_LOG_PATH):
         return []
 
     with open(MINECRAFT_LOG_PATH, "r", encoding="utf-8", errors="replace") as log_file:
-        lines = log_file.readlines()[-60:]
-
-    return [line.rstrip() for line in lines if line.rstrip()]
+        return [line.rstrip() for line in log_file.readlines() if line.rstrip()]
 
 
-def read_full_minecraft_log():
-    if not os.path.exists(MINECRAFT_LOG_PATH):
+def read_minecraft_log_text():
+    lines = read_full_minecraft_log()
+    if not lines:
         return "latest.log is not available yet.\n"
 
-    with open(MINECRAFT_LOG_PATH, "r", encoding="utf-8", errors="replace") as log_file:
-        return log_file.read()
+    return "\n".join(lines) + "\n"
+
+
+def read_player_history():
+    players = {}
+
+    for line in read_full_minecraft_log():
+        match = PLAYER_LOGIN_PATTERN.match(line)
+        if not match:
+            continue
+
+        name = match.group("name")
+        seen_at = match.group("time")
+        if name not in players:
+            players[name] = {
+                "name": name,
+                "first_login": seen_at,
+                "last_login": seen_at,
+            }
+        else:
+            players[name]["last_login"] = seen_at
+
+    return sorted(players.values(), key=lambda player: player["last_login"], reverse=True)
 
 
 class StatusHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/minecraft/latest.log":
-            body = read_full_minecraft_log().encode("utf-8")
+            body = read_minecraft_log_text().encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
@@ -234,7 +256,8 @@ class StatusHandler(BaseHTTPRequestHandler):
                 "disk": read_disk(),
                 "minecraft": {
                     "status": query_minecraft_status(),
-                    "logs": read_minecraft_log(),
+                    "logs": read_full_minecraft_log(),
+                    "players": read_player_history(),
                 },
             }
 
