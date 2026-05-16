@@ -240,6 +240,31 @@
         font-size: 0.94rem;
       }
 
+      .log-actions {
+        margin-top: 14px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .text-link {
+        min-height: 0;
+        display: inline-flex;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--accent);
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .text-link:hover,
+      .text-link:focus-visible {
+        color: var(--accent-2);
+        outline: none;
+      }
+
       .logs {
         max-height: 280px;
         margin: 16px 0 0;
@@ -340,6 +365,9 @@
             <span class="metric-value" id="minecraft-count">--/--</span>
           </div>
           <ul class="players" id="minecraft-players"></ul>
+          <div class="log-actions">
+            <a class="text-link" href="/status/minecraft/latest.log" target="_blank" rel="noreferrer">Open full latest.log</a>
+          </div>
           <pre class="logs" id="minecraft-logs">Loading logs...</pre>
         </div>
       </section>

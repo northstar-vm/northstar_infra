@@ -2,7 +2,6 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
-import re
 import socket
 import struct
 import time
@@ -13,7 +12,6 @@ MEMINFO_PATH = "/host/proc/meminfo"
 MINECRAFT_HOST = os.environ.get("MINECRAFT_HOST", "northstar-minecraft")
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
 MINECRAFT_LOG_PATH = "/minecraft-logs/latest.log"
-IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
 
@@ -200,16 +198,29 @@ def read_minecraft_log():
     with open(MINECRAFT_LOG_PATH, "r", encoding="utf-8", errors="replace") as log_file:
         lines = log_file.readlines()[-60:]
 
-    redacted = []
-    for line in lines:
-        line = IP_PATTERN.sub("[ip]", line.rstrip())
-        if line:
-            redacted.append(line)
-    return redacted
+    return [line.rstrip() for line in lines if line.rstrip()]
+
+
+def read_full_minecraft_log():
+    if not os.path.exists(MINECRAFT_LOG_PATH):
+        return "latest.log is not available yet.\n"
+
+    with open(MINECRAFT_LOG_PATH, "r", encoding="utf-8", errors="replace") as log_file:
+        return log_file.read()
 
 
 class StatusHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/minecraft/latest.log":
+            body = read_full_minecraft_log().encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         if self.path not in ("/api", "/health"):
             self.send_error(404)
             return
