@@ -16,6 +16,7 @@ secrets/
 northstar_actions
 northstar_actions.pub
 *.key
+*.pub
 *.pem
 *.crt
 
