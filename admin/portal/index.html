@@ -177,6 +177,33 @@
         transition: width 180ms ease;
       }
 
+      .sparkline {
+        width: 100%;
+        height: 56px;
+        margin: 14px 0 12px;
+        display: block;
+        overflow: visible;
+      }
+
+      .sparkline-grid {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 1;
+        opacity: 0.7;
+      }
+
+      .sparkline-area {
+        fill: color-mix(in srgb, var(--accent) 22%, transparent);
+      }
+
+      .sparkline-line {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
       .metric-note {
         color: var(--muted);
         font-size: 0.95rem;
@@ -268,6 +295,11 @@
             <div class="bar" aria-hidden="true">
               <div class="bar-fill" id="cpu-bar"></div>
             </div>
+            <svg class="sparkline" viewBox="0 0 240 56" role="img" aria-label="CPU usage history">
+              <path class="sparkline-grid" d="M0 14H240M0 28H240M0 42H240"></path>
+              <path class="sparkline-area" id="cpu-area"></path>
+              <path class="sparkline-line" id="cpu-line"></path>
+            </svg>
             <div class="metric-note" id="cpu-note">Loading CPU...</div>
           </div>
 
@@ -279,6 +311,11 @@
             <div class="bar" aria-hidden="true">
               <div class="bar-fill" id="memory-bar"></div>
             </div>
+            <svg class="sparkline" viewBox="0 0 240 56" role="img" aria-label="Memory usage history">
+              <path class="sparkline-grid" d="M0 14H240M0 28H240M0 42H240"></path>
+              <path class="sparkline-area" id="memory-area"></path>
+              <path class="sparkline-line" id="memory-line"></path>
+            </svg>
             <div class="metric-note" id="memory-note">Loading memory...</div>
           </div>
 
@@ -312,19 +349,66 @@
       </footer>
     </main>
     <script>
+      const HISTORY_LIMIT = 40;
+      const history = {
+        cpu: [],
+        memory: [],
+      };
+
+      const pushHistory = (name, value) => {
+        history[name].push(Math.max(0, Math.min(100, Number(value || 0))));
+        if (history[name].length > HISTORY_LIMIT) {
+          history[name].shift();
+        }
+      };
+
+      const renderSparkline = (name) => {
+        const values = history[name];
+        const line = document.getElementById(`${name}-line`);
+        const area = document.getElementById(`${name}-area`);
+
+        if (!values.length) {
+          line.setAttribute("d", "");
+          area.setAttribute("d", "");
+          return;
+        }
+
+        const width = 240;
+        const height = 56;
+        const step = values.length > 1 ? width / (values.length - 1) : width;
+        const points = values.map((value, index) => {
+          const x = values.length > 1 ? index * step : width;
+          const y = height - (value / 100) * height;
+          return [x, y];
+        });
+        const path = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+        const areaPath = `${path} L${points[points.length - 1][0].toFixed(1)} ${height} L${points[0][0].toFixed(1)} ${height} Z`;
+
+        line.setAttribute("d", path);
+        area.setAttribute("d", areaPath);
+      };
+
       const setMetric = (name, metric) => {
         const percent = Math.max(0, Math.min(100, Number(metric.used_percent || 0)));
         document.getElementById(`${name}-percent`).textContent = `${percent.toFixed(1)}%`;
         document.getElementById(`${name}-bar`).style.width = `${percent}%`;
         document.getElementById(`${name}-note`).textContent =
           `${metric.used_gib} GiB used / ${metric.total_gib} GiB total, ${metric.available_gib} GiB available`;
+
+        if (history[name]) {
+          pushHistory(name, percent);
+          renderSparkline(name);
+        }
       };
 
       const setCpu = (cpu) => {
         const percent = Math.max(0, Math.min(100, Number(cpu.used_percent || 0)));
         document.getElementById("cpu-percent").textContent = `${percent.toFixed(1)}%`;
         document.getElementById("cpu-bar").style.width = `${percent}%`;
-        document.getElementById("cpu-note").textContent = "Current processor load";
+        document.getElementById("cpu-note").textContent =
+          `1 min load ${cpu.load_1m ?? "--"} on ${cpu.cores ?? "--"} cores`;
+        pushHistory("cpu", percent);
+        renderSparkline("cpu");
       };
 
       const setMinecraft = (minecraft) => {

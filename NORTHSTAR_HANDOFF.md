@@ -445,7 +445,7 @@ docker compose logs --tail=80 portainer
 docker compose logs --tail=40 status
 ```
 
-The portal homepage shows simple CPU/RAM/root disk usage bars plus a read-only Minecraft panel with player count, sampled player names, and recent redacted log lines. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
+The portal homepage shows CPU/RAM usage bars with browser-side rolling sparklines, a root disk usage bar, and a read-only Minecraft panel with player count, sampled player names, and recent redacted log lines. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
 
 Status service design:
 

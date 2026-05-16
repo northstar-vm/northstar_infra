@@ -15,6 +15,7 @@ MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
 MINECRAFT_LOG_PATH = "/minecraft-logs/latest.log"
 IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 STAT_PATH = "/host/proc/stat"
+LOADAVG_PATH = "/host/proc/loadavg"
 
 
 def bytes_to_gib(value):
@@ -66,8 +67,25 @@ def read_cpu():
     if total_delta > 0:
         used_percent = round((1 - idle_delta / total_delta) * 100, 1)
 
+    load_1m = 0
+    cores = 0
+
+    try:
+        with open(LOADAVG_PATH, "r", encoding="utf-8") as loadavg_file:
+            load_1m = float(loadavg_file.readline().split()[0])
+    except (OSError, ValueError, IndexError):
+        load_1m = 0
+
+    try:
+        with open(STAT_PATH, "r", encoding="utf-8") as stat_file:
+            cores = sum(1 for line in stat_file if line.startswith("cpu") and line[3:4].isdigit())
+    except OSError:
+        cores = 0
+
     return {
         "used_percent": max(0, min(100, used_percent)),
+        "load_1m": round(load_1m, 2),
+        "cores": cores,
     }
 
 
