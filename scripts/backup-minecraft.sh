@@ -21,7 +21,10 @@ if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
   trap 'docker exec "$CONTAINER_NAME" rcon-cli save-on >/dev/null || true' EXIT
 fi
 
-tar -C "$DATA_DIR" -czf "$BACKUP_FILE" .
+if ! sudo tar -C "$DATA_DIR" -czf "$BACKUP_FILE" .; then
+  rm -f "$BACKUP_FILE"
+  exit 1
+fi
 
 if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
   docker exec "$CONTAINER_NAME" rcon-cli save-on >/dev/null

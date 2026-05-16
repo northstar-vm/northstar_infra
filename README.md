@@ -145,6 +145,14 @@ Create a manual world backup on the VM:
 bash /opt/northstar/infra/scripts/backup-minecraft.sh
 ```
 
+The script uses `sudo tar` so it can read all server-owned world files. For unattended cron backups, allow the `ubuntu` user to run tar without a password:
+
+```bash
+echo 'ubuntu ALL=(root) NOPASSWD: /usr/bin/tar' | sudo tee /etc/sudoers.d/northstar-minecraft-backup
+sudo chmod 440 /etc/sudoers.d/northstar-minecraft-backup
+sudo visudo -cf /etc/sudoers.d/northstar-minecraft-backup
+```
+
 Backups are written to:
 
 ```text
