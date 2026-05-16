@@ -1,75 +1,185 @@
-================================================================================
-MINECRAFT SECURE LINUX MINT SETUP GUIDE (SKLAUNCHER + FIREJAIL)
-================================================================================
+# Secure Minecraft Launcher On Linux
 
-1. OVERVIEW & CONTEXT
---------------------------------------------------------------------------------
-- Launcher Used: SKlauncher (v3.2.18) - Selected as a safe, clean, non-Microsoft 
-  offline launcher to avoid spyware issues linked with programs like TLauncher.
-- Sandbox Used: Firejail - Implemented to create a security wall. It prevents 
-  Minecraft, third-party mods, or external game servers from accessing your 
-  personal home files, browser data, or photos.
-- OS Environment: Linux Mint (Uses the APT package manager).
-- Java Requirement: Java 21 (OpenJDK 21) is strictly required by modern 
-  SKlauncher versions. Older versions like Java 11 will cause a "Fatal Error."
+This guide sets up a safer local Minecraft launcher workflow on Linux Mint/Ubuntu.
+It keeps launcher files in predictable folders, runs the launcher in a Firejail
+sandbox, and gives you one stable desktop shortcut.
 
+Use a licensed Microsoft/Minecraft Java account when joining `online-mode=true`
+servers such as:
 
-2. SYSTEM INSTALLATION AND CONFIGURATION
---------------------------------------------------------------------------------
-Open your terminal (Ctrl+Alt+T) and run these native commands to prepare your 
-operating system:
+```text
+mc.attentionisallineed.xyz
+```
 
-# Step A: Update your system packages and install Java 21 and Firejail
-sudo apt update && sudo apt install openjdk-21-jre firejail -y
+## 1. Install System Packages
 
-# Step B: Configure Linux Mint to prioritize Java 21 over older versions
-sudo update-alternatives --config java
-*(When the list appears, type the number corresponding to 'java-21-openjdk' 
-and press Enter).*
+```bash
+sudo apt update
+sudo apt install openjdk-21-jre firejail -y
+```
 
+Notes:
 
-3. SANDBOX FILE DIRECTORY LOGIC
---------------------------------------------------------------------------------
-When using the '--private=~/.safe-minecraft' flag, Firejail masks your actual 
-home directory. The folder '~/.safe-minecraft' effectively BECOMES your root 
-home folder ('/home/vallutto/') inside the sandbox execution loop. 
+- Java 21 is fine for many modern launcher/client setups.
+- Very new Minecraft versions may require newer Java. If the launcher or game
+  says Java is too old, install the required OpenJDK version and update the
+  wrapper script below to use that Java binary directly.
+- Avoid changing the global Java default unless you really need to. A wrapper
+  script is cleaner because it affects only Minecraft.
 
-To view this hidden directory natively in the Linux Mint Files manager, navigate 
-to your user Home folder and press 'Ctrl + H'. 
+## 2. Create Stable Folders
 
-Inside the sandbox, the execution path to your launcher file is:
-/home/vallutto/SKlauncher-3.2.18.jar
+```bash
+mkdir -p ~/Games/Minecraft
+mkdir -p ~/.local/bin
+mkdir -p ~/.local/share/minecraft-secure
+```
 
+Put your launcher jar here:
 
-4. TERMINAL MANIFEST LAUNCH COMMAND
---------------------------------------------------------------------------------
-To run the game securely with full network access (bypassing strict default 
-firejail network profile blocks) while keeping your personal files strictly 
-isolated, use this command:
+```text
+~/Games/Minecraft/SKlauncher.jar
+```
 
-firejail --noprofile --private=~/.safe-minecraft java -jar /home/vallutto/SKlauncher-3.2.18.jar
+Renaming the jar to `SKlauncher.jar` means the desktop shortcut does not break
+every time the launcher version changes.
 
+## 3. Create The Wrapper Script
 
-5. DESKTOP SHORTCUT AUTOMATION (.DESKTOP FILE)
---------------------------------------------------------------------------------
-To generate a permanent, clickable launcher shortcut directly on your Linux Mint 
-Desktop, paste this full block into your terminal:
+Create:
 
-cat <<EOF > ~/Desktop/Minecraft-Secure.desktop
+```bash
+nano ~/.local/bin/minecraft-secure
+```
+
+Paste:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+LAUNCHER_JAR="$HOME/Games/Minecraft/SKlauncher.jar"
+SANDBOX_HOME="$HOME/.local/share/minecraft-secure"
+JAVA_BIN="/usr/bin/java"
+
+if [ ! -f "$LAUNCHER_JAR" ]; then
+  echo "Launcher not found: $LAUNCHER_JAR" >&2
+  exit 1
+fi
+
+mkdir -p "$SANDBOX_HOME"
+
+exec firejail \
+  --noprofile \
+  --private="$SANDBOX_HOME" \
+  "$JAVA_BIN" -jar "$LAUNCHER_JAR"
+```
+
+Make it executable:
+
+```bash
+chmod +x ~/.local/bin/minecraft-secure
+```
+
+Test it:
+
+```bash
+~/.local/bin/minecraft-secure
+```
+
+## 4. Create A Desktop Shortcut
+
+Create:
+
+```bash
+nano ~/Desktop/Minecraft-Secure.desktop
+```
+
+Paste:
+
+```ini
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Minecraft (Secure)
-Comment=Launch SKlauncher inside a Firejail sandbox
-Exec=firejail --noprofile --private=~/.safe-minecraft java -jar /home/vallutto/SKlauncher-3.2.18.jar
+Name=Minecraft Secure
+Comment=Launch Minecraft in a Firejail sandbox
+Exec=/home/vallutto/.local/bin/minecraft-secure
 Icon=minecraft
 Terminal=false
 Categories=Game;
-EOF
+```
 
-# Give execution permissions to make the desktop icon interactive:
+Make it executable and add it to the app menu:
+
+```bash
 chmod +x ~/Desktop/Minecraft-Secure.desktop
-
-# Optional: Add the launcher to your Linux Mint Start Menu:
+mkdir -p ~/.local/share/applications
 cp ~/Desktop/Minecraft-Secure.desktop ~/.local/share/applications/
-================================================================================
+```
+
+If your Linux desktop blocks launching it at first, right-click the desktop icon
+and allow launching/trust the launcher.
+
+## 5. Where Files Go
+
+Your real home folder stays mostly hidden from the launcher because Firejail uses:
+
+```text
+~/.local/share/minecraft-secure
+```
+
+Inside the sandbox, that folder behaves like the launcher's home directory. This
+is where launcher settings, game files, and downloaded versions will live.
+
+To inspect it in the file manager, open your home folder and press `Ctrl+H` to
+show hidden folders, then go to:
+
+```text
+.local/share/minecraft-secure
+```
+
+## 6. Useful Commands
+
+Run launcher from terminal:
+
+```bash
+~/.local/bin/minecraft-secure
+```
+
+Check Java:
+
+```bash
+java -version
+```
+
+Check Firejail exists:
+
+```bash
+firejail --version
+```
+
+Connect to your server from Minecraft Java:
+
+```text
+mc.attentionisallineed.xyz
+```
+
+## 7. Troubleshooting
+
+If the launcher says Java is too old:
+
+1. Install the required OpenJDK version.
+2. Find the Java binary:
+
+```bash
+ls /usr/lib/jvm
+```
+
+3. Update `JAVA_BIN` in `~/.local/bin/minecraft-secure` to the full Java path.
+
+If the launcher cannot find downloaded game files, remember they are inside the
+sandbox folder, not your normal home folder.
+
+If multiplayer cannot connect, first test the official Minecraft Launcher or a
+non-sandboxed launch once. If that works, the issue is the local sandbox. If it
+also fails, check the server DNS/firewall/port instead.

@@ -150,6 +150,30 @@ After `.env` exists, the general infra deployment script will also keep this sta
 bash /opt/northstar/infra/scripts/deploy-infra.sh
 ```
 
+Create a manual world backup:
+
+```bash
+bash /opt/northstar/infra/scripts/backup-minecraft.sh
+```
+
+Backups are stored in:
+
+```text
+/opt/northstar/backups/minecraft
+```
+
+To run backups every 8 hours, install this cron entry with `crontab -e`:
+
+```cron
+0 */8 * * * /bin/bash /opt/northstar/infra/scripts/backup-minecraft.sh >> /opt/northstar/backups/minecraft/backup.log 2>&1
+```
+
+The backup script keeps 7 days of `minecraft-world-*.tar.gz` archives by default. Override it for one run with:
+
+```bash
+RETENTION_DAYS=30 bash /opt/northstar/infra/scripts/backup-minecraft.sh
+```
+
 Players connect to:
 
 ```text

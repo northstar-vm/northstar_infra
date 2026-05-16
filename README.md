@@ -139,6 +139,24 @@ The general infra deployment script also starts Minecraft if `/opt/northstar/inf
 bash /opt/northstar/infra/scripts/deploy-infra.sh
 ```
 
+Create a manual world backup on the VM:
+
+```bash
+bash /opt/northstar/infra/scripts/backup-minecraft.sh
+```
+
+Backups are written to:
+
+```text
+/opt/northstar/backups/minecraft
+```
+
+To run backups every 8 hours, install this cron entry on the VM with `crontab -e`:
+
+```cron
+0 */8 * * * /bin/bash /opt/northstar/infra/scripts/backup-minecraft.sh >> /opt/northstar/backups/minecraft/backup.log 2>&1
+```
+
 Players connect to:
 
 ```text
