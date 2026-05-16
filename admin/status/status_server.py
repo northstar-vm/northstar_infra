@@ -5,6 +5,7 @@ import os
 import re
 import socket
 import struct
+import time
 
 
 HOST_ROOT = "/host"
@@ -13,6 +14,7 @@ MINECRAFT_HOST = os.environ.get("MINECRAFT_HOST", "northstar-minecraft")
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
 MINECRAFT_LOG_PATH = "/minecraft-logs/latest.log"
 IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+STAT_PATH = "/host/proc/stat"
 
 
 def bytes_to_gib(value):
@@ -37,6 +39,35 @@ def read_memory():
         "used_gib": bytes_to_gib(used),
         "available_gib": bytes_to_gib(available),
         "used_percent": round((used / total) * 100, 1) if total else 0,
+    }
+
+
+def read_cpu_sample():
+    with open(STAT_PATH, "r", encoding="utf-8") as stat_file:
+        parts = stat_file.readline().split()
+
+    if not parts or parts[0] != "cpu":
+        return 0, 0
+
+    values = [int(value) for value in parts[1:]]
+    idle = values[3] + values[4]
+    total = sum(values)
+    return idle, total
+
+
+def read_cpu():
+    idle_a, total_a = read_cpu_sample()
+    time.sleep(0.12)
+    idle_b, total_b = read_cpu_sample()
+    idle_delta = idle_b - idle_a
+    total_delta = total_b - total_a
+    used_percent = 0
+
+    if total_delta > 0:
+        used_percent = round((1 - idle_delta / total_delta) * 100, 1)
+
+    return {
+        "used_percent": max(0, min(100, used_percent)),
     }
 
 
@@ -169,6 +200,7 @@ class StatusHandler(BaseHTTPRequestHandler):
             payload = {"ok": True}
         else:
             payload = {
+                "cpu": read_cpu(),
                 "memory": read_memory(),
                 "disk": read_disk(),
                 "minecraft": {

@@ -128,7 +128,7 @@
 
       .metrics-grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 14px;
       }
 
@@ -262,6 +262,17 @@
         <div class="metrics-grid">
           <div class="metric">
             <div class="metric-top">
+              <span class="metric-name">CPU</span>
+              <span class="metric-value" id="cpu-percent">--%</span>
+            </div>
+            <div class="bar" aria-hidden="true">
+              <div class="bar-fill" id="cpu-bar"></div>
+            </div>
+            <div class="metric-note" id="cpu-note">Loading CPU...</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-top">
               <span class="metric-name">Memory</span>
               <span class="metric-value" id="memory-percent">--%</span>
             </div>
@@ -309,6 +320,13 @@
           `${metric.used_gib} GiB used / ${metric.total_gib} GiB total, ${metric.available_gib} GiB available`;
       };
 
+      const setCpu = (cpu) => {
+        const percent = Math.max(0, Math.min(100, Number(cpu.used_percent || 0)));
+        document.getElementById("cpu-percent").textContent = `${percent.toFixed(1)}%`;
+        document.getElementById("cpu-bar").style.width = `${percent}%`;
+        document.getElementById("cpu-note").textContent = "Current processor load";
+      };
+
       const setMinecraft = (minecraft) => {
         const status = minecraft.status || {};
         const players = status.sample || [];
@@ -346,10 +364,12 @@
             throw new Error(`status ${response.status}`);
           }
           const data = await response.json();
+          setCpu(data.cpu || {});
           setMetric("memory", data.memory);
           setMetric("disk", data.disk);
           setMinecraft(data.minecraft || {});
         } catch (error) {
+          document.getElementById("cpu-note").textContent = "Status unavailable";
           document.getElementById("memory-note").textContent = "Status unavailable";
           document.getElementById("disk-note").textContent = "Status unavailable";
           document.getElementById("minecraft-note").textContent = "Status unavailable";
