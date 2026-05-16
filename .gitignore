@@ -20,6 +20,8 @@ northstar_actions.pub
 # Runtime data
 admin/data/
 admin/files/
+apps/minecraft/.env
+apps/minecraft/data/
 proxy/data/
 proxy/config/
 caddy_data/

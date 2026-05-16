@@ -10,8 +10,10 @@ This repo should become the separate private GitHub repo `northstar-infra`. Do n
 sudo mkdir -p /opt/northstar/infra
 sudo mkdir -p /opt/northstar/admin/portal
 sudo mkdir -p /opt/northstar/admin/files
+sudo mkdir -p /opt/northstar/apps/minecraft/data
 sudo mkdir -p /opt/northstar/backups
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin
+sudo chown -R ubuntu:ubuntu /opt/northstar/apps/minecraft
 sudo chown -R ubuntu:ubuntu /opt/northstar/backups
 ```
 
@@ -29,12 +31,17 @@ Expected layout:
     apps/
       cv/
         docker-compose.yml
+      minecraft/
+        docker-compose.yml
+        .env.example
     proxy/
       docker-compose.yml
       Caddyfile
   apps/
     quizzy/
     cv/
+    minecraft/
+      data/
   backups/
 ```
 
@@ -83,7 +90,73 @@ Or use the deployment script:
 bash /opt/northstar/infra/scripts/deploy-cv.sh
 ```
 
-## 4. Start Admin Services
+## 4. Start the Minecraft Java Server
+
+Minecraft runs as a Paper Java Edition server from this infra repo, with the world data stored outside git at `/opt/northstar/apps/minecraft/data`.
+
+First, create the Cloudflare DNS record:
+
+```text
+Type: A
+Name: mc
+Content: 130.61.33.233
+Proxy status: DNS only
+```
+
+Then open Minecraft's TCP port in Oracle Cloud ingress rules:
+
+```text
+Source CIDR: 0.0.0.0/0
+IP Protocol: TCP
+Destination Port Range: 25565
+Description: Minecraft Java server
+```
+
+Check whether `ufw` is active on the VM:
+
+```bash
+sudo ufw status verbose
+```
+
+If it says `Status: active`, allow Minecraft:
+
+```bash
+sudo ufw allow 25565/tcp
+```
+
+Create the VM-only environment file:
+
+```bash
+cd /opt/northstar/infra/apps/minecraft
+cp .env.example .env
+nano .env
+```
+
+Set `OPS` to your licensed Minecraft Java username. Leave the real `.env` on the VM only; it is ignored by git.
+
+Start the server:
+
+```bash
+cd /opt/northstar/infra/apps/minecraft
+docker compose up -d
+docker compose logs -f minecraft
+```
+
+After `.env` exists, the general infra deployment script will also keep this stack running:
+
+```bash
+bash /opt/northstar/infra/scripts/deploy-infra.sh
+```
+
+Players connect to:
+
+```text
+mc.attentionisallineed.xyz
+```
+
+Minecraft uses port `25565/tcp` directly. Do not route it through Caddy, and keep `ONLINE_MODE=TRUE` so only authenticated paid Java Edition accounts can join.
+
+## 5. Start Admin Services
 
 ```bash
 cd /opt/northstar/infra/admin
@@ -121,7 +194,7 @@ docker compose up -d filebrowser
 docker compose logs filebrowser | grep -i password
 ```
 
-## 5. Configure Caddy
+## 6. Configure Caddy
 
 Generate a Caddy Basic Auth hash on the VM:
 
@@ -159,7 +232,7 @@ cv.attentionisallineed.xyz {
 }
 ```
 
-## 6. Start or Reload Caddy
+## 7. Start or Reload Caddy
 
 If Caddy is already running with Docker Compose:
 
@@ -175,7 +248,7 @@ If the reload fails, inspect the logs:
 docker compose logs caddy
 ```
 
-## 7. Cloudflare
+## 8. Cloudflare
 
 Add these DNS records:
 
@@ -199,13 +272,20 @@ Type: A
 Name: cv
 Content: 130.61.33.233
 Proxy status: Proxied
+
+Type: A
+Name: mc
+Content: 130.61.33.233
+Proxy status: DNS only
 ```
 
 Keep the existing Quizzy record working.
 
 `quizzy`, `cv`, and `northstar` can all be Cloudflare proxied because Caddy serves HTTPS on the VM. If Cloudflare shows a TLS error such as 525 or 526, check Cloudflare SSL/TLS mode and use `Full (strict)` with Caddy's valid certificates, or temporarily switch the record back to `DNS only` while debugging.
 
-## 8. Atlas and OAuth Checks
+Keep `mc` DNS-only because Minecraft uses raw TCP on `25565`, not HTTPS through Caddy.
+
+## 9. Atlas and OAuth Checks
 
 MongoDB Atlas:
 
@@ -221,7 +301,7 @@ Google OAuth for Quizzy:
 
 Do not store MongoDB URIs or OAuth secrets in this repo.
 
-## 9. Oracle Cost Safety
+## 10. Oracle Cost Safety
 
 Recommended guardrails:
 
@@ -233,7 +313,7 @@ Recommended guardrails:
 
 The current VM uses the Always Free A1 maximum: 4 OCPU and 24 GB RAM.
 
-## 10. Verify
+## 11. Verify
 
 Open:
 
@@ -242,14 +322,16 @@ Open:
 - `https://northstar.attentionisallineed.xyz`
 - `https://northstar.attentionisallineed.xyz/docker/`
 - `https://northstar.attentionisallineed.xyz/files/`
+- `mc.attentionisallineed.xyz` from Minecraft Java Edition
 
 Expected security layers:
 
 - Northstar domain asks for Caddy Basic Auth first.
 - Portainer asks for its own login at `/docker/`.
 - File Browser asks for its own login at `/files/`.
+- Minecraft requires a licensed Java Edition account because `ONLINE_MODE=TRUE`.
 
-## 11. CI/CD Setup
+## 12. CI/CD Setup
 
 The VM-side scripts are:
 

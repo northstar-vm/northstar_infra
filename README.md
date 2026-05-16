@@ -15,9 +15,11 @@ Private infrastructure templates for the `northstar` Oracle VM. This repo manage
 - Active Caddy proxy folder: `/opt/northstar/infra/proxy`
 - Existing Quizzy app: `/opt/northstar/apps/quizzy`
 - CV / portfolio app: `/opt/northstar/apps/cv`
+- Minecraft server data: `/opt/northstar/apps/minecraft/data`
 - Quizzy domain: `https://quizzy.attentionisallineed.xyz`
 - CV domain: `https://cv.attentionisallineed.xyz`
 - Admin portal domain: `https://northstar.attentionisallineed.xyz`
+- Minecraft address: `mc.attentionisallineed.xyz`
 - Root domain: `https://attentionisallineed.xyz`, redirects to CV
 
 ## Existing App
@@ -97,6 +99,52 @@ Good places for manual files:
 /srv/home/ubuntu
 ```
 
+## Minecraft Java Server
+
+The Minecraft server is a Dockerized Paper Java Edition server. Its compose file lives in:
+
+```text
+apps/minecraft/docker-compose.yml
+```
+
+Runtime server data lives outside the infra repo in:
+
+```text
+/opt/northstar/apps/minecraft/data
+```
+
+Create the VM-only environment file before first start:
+
+```bash
+cd /opt/northstar/infra/apps/minecraft
+cp .env.example .env
+nano .env
+```
+
+Set `OPS` to the licensed Minecraft Java username that should have operator/admin permissions. Keep `ONLINE_MODE=TRUE` in compose so only authenticated paid Java Edition accounts can join.
+
+Start and inspect the server on the VM:
+
+```bash
+cd /opt/northstar/infra/apps/minecraft
+docker compose up -d
+docker compose logs -f minecraft
+```
+
+The general infra deployment script also starts Minecraft if `/opt/northstar/infra/apps/minecraft/.env` exists:
+
+```bash
+bash /opt/northstar/infra/scripts/deploy-infra.sh
+```
+
+Players connect to:
+
+```text
+mc.attentionisallineed.xyz
+```
+
+Minecraft uses raw TCP on port `25565`, not HTTP/HTTPS, so it does not go through Caddy.
+
 ## Secrets
 
 Do not commit real passwords, Caddy hashes, Portainer data, File Browser databases, or runtime volumes.
@@ -126,9 +174,12 @@ Create these DNS records:
 | `A` | `cv` | `130.61.33.233` | Enabled |
 | `A` | `northstar` | `130.61.33.233` | Enabled |
 | `A` | `quizzy` | `130.61.33.233` | Enabled |
+| `A` | `mc` | `130.61.33.233` | Disabled / DNS-only |
 | `CNAME` | `www` | `attentionisallineed.xyz` | Enabled |
 
 `attentionisallineed.xyz`, `www`, `quizzy`, `cv`, and `northstar` can all be Cloudflare proxied while Caddy is serving valid HTTPS certificates on the VM. If Cloudflare shows a TLS error, check Cloudflare SSL/TLS mode before changing the VM.
+
+Keep `mc.attentionisallineed.xyz` DNS-only because Cloudflare's normal orange-cloud proxy does not proxy Minecraft TCP traffic.
 
 ## External Services
 

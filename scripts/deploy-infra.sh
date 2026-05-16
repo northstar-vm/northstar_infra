@@ -19,6 +19,14 @@ if [ -d /opt/northstar/apps/cv/.git ]; then
   docker compose up -d
 fi
 
+if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
+  sudo mkdir -p /opt/northstar/apps/minecraft/data
+  sudo chown -R ubuntu:ubuntu /opt/northstar/apps/minecraft
+
+  cd "$INFRA_DIR/apps/minecraft"
+  docker compose up -d
+fi
+
 cd "$INFRA_DIR/proxy"
 docker compose up -d
 docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || true
