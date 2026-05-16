@@ -10,6 +10,14 @@ quizzy.attentionisallineed.xyz {
 	reverse_proxy EXISTING_WORKING_QUIZZY_UPSTREAM
 }
 
+attentionisallineed.xyz {
+	redir https://cv.attentionisallineed.xyz{uri}
+}
+
+www.attentionisallineed.xyz {
+	redir https://cv.attentionisallineed.xyz{uri}
+}
+
 cv.attentionisallineed.xyz {
 	encode zstd gzip
 	reverse_proxy cv-web:80

@@ -7,7 +7,7 @@ This repo should become the separate private GitHub repo `northstar-infra`. Do n
 ## 1. Prepare Folders
 
 ```bash
-sudo mkdir -p /opt/northstar/proxy
+sudo mkdir -p /opt/northstar/infra
 sudo mkdir -p /opt/northstar/admin/portal
 sudo mkdir -p /opt/northstar/admin/files
 sudo mkdir -p /opt/northstar/backups
@@ -32,11 +32,10 @@ Expected layout:
     proxy/
       docker-compose.yml
       Caddyfile
-  proxy/
-    old proxy location, no longer used after infra proxy is active
   apps/
     quizzy/
     cv/
+  backups/
 ```
 
 ## 2. Create the Admin Docker Network
@@ -130,7 +129,7 @@ Generate a Caddy Basic Auth hash on the VM:
 docker run --rm caddy:2 caddy hash-password --plaintext 'your-real-password'
 ```
 
-Create or update `/opt/northstar/proxy/Caddyfile` using `proxy/Caddyfile.example` as a template.
+Create or update `/opt/northstar/infra/proxy/Caddyfile` using `proxy/Caddyfile.example` as a template.
 
 Important: merge the admin host into the existing proxy config. Do not delete or rewrite the existing working Quizzy host unless you intentionally need to update that app route.
 
@@ -146,6 +145,14 @@ with the real username and generated hash on the VM only.
 The CV route should point to the CV Nginx service:
 
 ```caddy
+attentionisallineed.xyz {
+	redir https://cv.attentionisallineed.xyz{uri}
+}
+
+www.attentionisallineed.xyz {
+	redir https://cv.attentionisallineed.xyz{uri}
+}
+
 cv.attentionisallineed.xyz {
 	encode zstd gzip
 	reverse_proxy cv-web:80
@@ -157,7 +164,7 @@ cv.attentionisallineed.xyz {
 If Caddy is already running with Docker Compose:
 
 ```bash
-cd /opt/northstar/proxy
+cd /opt/northstar/infra/proxy
 docker compose up -d
 docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
@@ -173,6 +180,16 @@ docker compose logs caddy
 Add these DNS records:
 
 ```text
+Type: A
+Name: attentionisallineed.xyz
+Content: 130.61.33.233
+Proxy status: Proxied
+
+Type: CNAME
+Name: www
+Content: attentionisallineed.xyz
+Proxy status: Proxied
+
 Type: A
 Name: northstar
 Content: 130.61.33.233

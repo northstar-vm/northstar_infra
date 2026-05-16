@@ -18,6 +18,7 @@ Private infrastructure templates for the `northstar` Oracle VM. This repo manage
 - Quizzy domain: `https://quizzy.attentionisallineed.xyz`
 - CV domain: `https://cv.attentionisallineed.xyz`
 - Admin portal domain: `https://northstar.attentionisallineed.xyz`
+- Root domain: `https://attentionisallineed.xyz`, redirects to CV
 
 ## Existing App
 
@@ -121,12 +122,13 @@ Create these DNS records:
 
 | Type | Name | Content | Proxy |
 | --- | --- | --- | --- |
+| `A` | `attentionisallineed.xyz` | `130.61.33.233` | Enabled |
 | `A` | `cv` | `130.61.33.233` | Enabled |
 | `A` | `northstar` | `130.61.33.233` | Enabled |
+| `A` | `quizzy` | `130.61.33.233` | Enabled |
+| `CNAME` | `www` | `attentionisallineed.xyz` | Enabled |
 
-Keep the existing Quizzy DNS record as-is.
-
-`quizzy`, `cv`, and `northstar` can all be Cloudflare proxied while Caddy is serving valid HTTPS certificates on the VM. If Cloudflare shows a TLS error, check Cloudflare SSL/TLS mode before changing the VM.
+`attentionisallineed.xyz`, `www`, `quizzy`, `cv`, and `northstar` can all be Cloudflare proxied while Caddy is serving valid HTTPS certificates on the VM. If Cloudflare shows a TLS error, check Cloudflare SSL/TLS mode before changing the VM.
 
 ## External Services
 
