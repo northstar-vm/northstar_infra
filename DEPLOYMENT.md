@@ -94,6 +94,8 @@ bash /opt/northstar/infra/scripts/deploy-cv.sh
 
 Minecraft runs as a Paper Java Edition server from this infra repo, with the world data stored outside git at `/opt/northstar/apps/minecraft/data`.
 
+During first setup, the compose file uses `restart: "no"` so configuration errors do not create a restart loop. After the server is stable, switch it back to `restart: unless-stopped` if you want it to auto-start after VM or Docker restarts.
+
 First, create the Cloudflare DNS record:
 
 ```text
@@ -132,7 +134,7 @@ cp .env.example .env
 nano .env
 ```
 
-Set `OPS` to your licensed Minecraft Java username. Leave the real `.env` on the VM only; it is ignored by git.
+Set `OPS` to your exact licensed Minecraft Java username, or leave it blank for first boot. Placeholder usernames will stop startup because the server image tries to resolve them. Leave the real `.env` on the VM only; it is ignored by git.
 
 Start the server:
 

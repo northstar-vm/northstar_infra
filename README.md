@@ -121,7 +121,9 @@ cp .env.example .env
 nano .env
 ```
 
-Set `OPS` to the licensed Minecraft Java username that should have operator/admin permissions. Keep `ONLINE_MODE=TRUE` in compose so only authenticated paid Java Edition accounts can join.
+Set `OPS` to the exact licensed Minecraft Java username that should have operator/admin permissions, or leave it blank for first boot. Keep `ONLINE_MODE=TRUE` in compose so only authenticated paid Java Edition accounts can join.
+
+During first setup, the compose file uses `restart: "no"` so configuration errors do not create a restart loop. After the server is stable, switch it back to `restart: unless-stopped` if you want it to auto-start after VM or Docker restarts.
 
 Start and inspect the server on the VM:
 
