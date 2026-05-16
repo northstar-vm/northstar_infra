@@ -42,6 +42,10 @@ northstar.attentionisallineed.xyz {
 
 	redir /files /files/
 
+	handle_path /status/* {
+		reverse_proxy status:8080
+	}
+
 	handle {
 		root * /srv/northstar-admin
 		file_server

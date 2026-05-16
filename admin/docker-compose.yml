@@ -21,6 +21,18 @@ services:
     networks:
       - northstar_web
 
+  status:
+    image: python:3.13-alpine
+    container_name: northstar-status
+    restart: unless-stopped
+    command: python /app/status_server.py
+    volumes:
+      - ./status:/app:ro
+      - /:/host:ro
+      - /proc:/host/proc:ro
+    networks:
+      - northstar_web
+
 volumes:
   portainer_data:
   filebrowser_database:

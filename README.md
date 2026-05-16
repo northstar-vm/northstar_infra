@@ -72,8 +72,11 @@ CI/CD target:
 - `https://northstar.attentionisallineed.xyz/` - static admin portal page
 - `https://northstar.attentionisallineed.xyz/docker/` - Portainer CE
 - `https://northstar.attentionisallineed.xyz/files/` - File Browser
+- `https://northstar.attentionisallineed.xyz/status/api` - private VM memory/disk status API used by the admin portal
 
 The admin domain is protected with Caddy Basic Auth. Portainer and File Browser keep their own application logins as a second layer.
+
+The portal home page shows simple RAM and root disk bars. The status API is served by an internal Docker container and is not published directly to the internet.
 
 ## File Browser Scope
 

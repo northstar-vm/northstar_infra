@@ -119,6 +119,61 @@
         color: var(--accent-2);
         font-weight: 720;
       }
+
+      .status {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
+      }
+
+      .metric {
+        min-height: 136px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .metric-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .metric-name {
+        font-size: 0.84rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .metric-value {
+        font-size: 1.35rem;
+        font-weight: 720;
+      }
+
+      .bar {
+        height: 12px;
+        margin: 22px 0 12px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--line) 76%, transparent);
+      }
+
+      .bar-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+        transition: width 180ms ease;
+      }
+
+      .metric-note {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
     </style>
   </head>
   <body>
@@ -142,9 +197,60 @@
         </a>
       </nav>
 
+      <section class="status" aria-label="VM status">
+        <div class="metric">
+          <div class="metric-top">
+            <span class="metric-name">Memory</span>
+            <span class="metric-value" id="memory-percent">--%</span>
+          </div>
+          <div class="bar" aria-hidden="true">
+            <div class="bar-fill" id="memory-bar"></div>
+          </div>
+          <div class="metric-note" id="memory-note">Loading memory...</div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-top">
+            <span class="metric-name">Disk /</span>
+            <span class="metric-value" id="disk-percent">--%</span>
+          </div>
+          <div class="bar" aria-hidden="true">
+            <div class="bar-fill" id="disk-bar"></div>
+          </div>
+          <div class="metric-note" id="disk-note">Loading disk...</div>
+        </div>
+      </section>
+
       <footer>
         VM drop zone: <strong>/opt/northstar/admin/files</strong>
       </footer>
     </main>
+    <script>
+      const setMetric = (name, metric) => {
+        const percent = Math.max(0, Math.min(100, Number(metric.used_percent || 0)));
+        document.getElementById(`${name}-percent`).textContent = `${percent.toFixed(1)}%`;
+        document.getElementById(`${name}-bar`).style.width = `${percent}%`;
+        document.getElementById(`${name}-note`).textContent =
+          `${metric.used_gib} GiB used / ${metric.total_gib} GiB total, ${metric.available_gib} GiB available`;
+      };
+
+      const loadStatus = async () => {
+        try {
+          const response = await fetch("/status/api", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`status ${response.status}`);
+          }
+          const data = await response.json();
+          setMetric("memory", data.memory);
+          setMetric("disk", data.disk);
+        } catch (error) {
+          document.getElementById("memory-note").textContent = "Status unavailable";
+          document.getElementById("disk-note").textContent = "Status unavailable";
+        }
+      };
+
+      loadStatus();
+      setInterval(loadStatus, 30000);
+    </script>
   </body>
 </html>

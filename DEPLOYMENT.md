@@ -246,6 +246,16 @@ Portainer will initialize on first visit and ask you to create its admin user.
 
 File Browser will create its database on first run. Change its default credentials immediately inside the File Browser UI.
 
+The admin status service reads host RAM and root disk usage read-only, then the portal renders two bars. It is only reachable through the Caddy-protected northstar domain.
+
+Check the status service:
+
+```bash
+cd /opt/northstar/infra/admin
+docker compose ps status
+docker compose logs --tail=40 status
+```
+
 File Browser mounts the VM root filesystem at `/srv` in the browser. This is intentionally powerful: use it for operational edits and file management, but avoid changing system directories unless you know why.
 
 Useful browser paths:
@@ -308,6 +318,26 @@ www.attentionisallineed.xyz {
 cv.attentionisallineed.xyz {
 	encode zstd gzip
 	reverse_proxy cv-web:80
+}
+```
+
+The northstar admin host should include these internal admin routes:
+
+```caddy
+handle_path /docker/* {
+	reverse_proxy portainer:9000
+}
+
+redir /docker /docker/
+
+handle /files/* {
+	reverse_proxy filebrowser:80
+}
+
+redir /files /files/
+
+handle_path /status/* {
+	reverse_proxy status:8080
 }
 ```
 

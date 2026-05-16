@@ -432,6 +432,7 @@ Routes:
 /          static admin portal
 /docker/   Portainer CE
 /files/    File Browser
+/status/api private JSON status for portal RAM/disk bars
 ```
 
 Admin compose:
@@ -441,6 +442,18 @@ cd /opt/northstar/infra/admin
 docker compose ps
 docker compose logs --tail=80 filebrowser
 docker compose logs --tail=80 portainer
+docker compose logs --tail=40 status
+```
+
+The portal homepage shows simple RAM and root disk usage bars. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`. It mounts `/` and `/proc` read-only, exposes only container port `8080` on the Docker network, and Caddy proxies `/status/*` behind the existing northstar Basic Auth.
+
+Manual status checks on the VM:
+
+```bash
+free -h
+df -h /
+cd /opt/northstar/infra/admin
+docker compose exec status python -c "import json, urllib.request; print(json.dumps(json.load(urllib.request.urlopen('http://127.0.0.1:8080/api')), indent=2))"
 ```
 
 ## File Browser

@@ -5,6 +5,8 @@
 .idea/
 .vscode/
 *.swp
+__pycache__/
+*.pyc
 
 # Environment and secrets
 .env
