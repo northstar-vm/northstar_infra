@@ -432,7 +432,7 @@ Routes:
 /          static admin portal
 /docker/   Portainer CE
 /files/    File Browser
-/status/api private JSON status for portal RAM/disk bars
+/status/api private JSON status for portal RAM/disk bars and read-only Minecraft panel
 ```
 
 Admin compose:
@@ -445,7 +445,16 @@ docker compose logs --tail=80 portainer
 docker compose logs --tail=40 status
 ```
 
-The portal homepage shows simple RAM and root disk usage bars. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`. It mounts `/` and `/proc` read-only, exposes only container port `8080` on the Docker network, and Caddy proxies `/status/*` behind the existing northstar Basic Auth.
+The portal homepage shows simple RAM/root disk usage bars plus a read-only Minecraft panel with player count, sampled player names, and recent redacted log lines. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
+
+Status service design:
+
+- Mounts `/` and `/proc` read-only for VM stats.
+- Mounts `/opt/northstar/apps/minecraft/data/logs` read-only for `latest.log`.
+- Queries Minecraft through the normal server-list ping on `northstar-minecraft:25565`.
+- Exposes only container port `8080` on the Docker network.
+- Caddy proxies `/status/*` behind the existing northstar Basic Auth.
+- It is intentionally read-only; use SSH/RCON for actual server commands.
 
 Manual status checks on the VM:
 

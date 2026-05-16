@@ -30,6 +30,7 @@ services:
       - ./status:/app:ro
       - /:/host:ro
       - /proc:/host/proc:ro
+      - /opt/northstar/apps/minecraft/data/logs:/minecraft-logs:ro
     networks:
       - northstar_web
 

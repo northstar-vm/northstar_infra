@@ -246,7 +246,7 @@ Portainer will initialize on first visit and ask you to create its admin user.
 
 File Browser will create its database on first run. Change its default credentials immediately inside the File Browser UI.
 
-The admin status service reads host RAM and root disk usage read-only, then the portal renders two bars. It is only reachable through the Caddy-protected northstar domain.
+The admin status service reads host RAM and root disk usage read-only, queries Minecraft's normal server-list status, and reads recent Minecraft logs from a read-only mount. The portal renders RAM/disk bars plus a read-only Minecraft panel. It is only reachable through the Caddy-protected northstar domain.
 
 Check the status service:
 
@@ -255,6 +255,8 @@ cd /opt/northstar/infra/admin
 docker compose ps status
 docker compose logs --tail=40 status
 ```
+
+The Minecraft panel is intentionally read-only. Use SSH/RCON for commands instead of exposing command execution in the browser.
 
 File Browser mounts the VM root filesystem at `/srv` in the browser. This is intentionally powerful: use it for operational edits and file management, but avoid changing system directories unless you know why.
 

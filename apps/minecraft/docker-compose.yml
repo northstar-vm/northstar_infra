@@ -18,3 +18,9 @@ services:
       WHITELIST: "${WHITELIST:-}"
     volumes:
       - /opt/northstar/apps/minecraft/data:/data
+    networks:
+      - northstar_web
+
+networks:
+  northstar_web:
+    external: true
