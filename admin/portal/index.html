@@ -254,6 +254,37 @@
         white-space: pre-wrap;
       }
 
+      .console {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      .console input {
+        width: 100%;
+        min-height: 38px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel);
+        color: var(--fg);
+        font: inherit;
+      }
+
+      .console input:focus-visible {
+        border-color: var(--accent);
+        outline: none;
+      }
+
+      .console-output {
+        min-height: 2.8em;
+        margin-top: 10px;
+        color: var(--muted);
+        font: 0.9rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        white-space: pre-wrap;
+      }
+
       .player-history {
         width: 100%;
         margin-top: 16px;
@@ -368,6 +399,10 @@
 
         .metric-note {
           min-height: 0;
+        }
+
+        .console {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -486,6 +521,11 @@
               </tr>
             </tbody>
           </table>
+          <form class="console" id="minecraft-console">
+            <input id="minecraft-command" type="text" autocomplete="off" maxlength="180" placeholder="time set day">
+            <button type="submit">Send</button>
+          </form>
+          <div class="console-output" id="minecraft-console-output">Commands run through rcon-cli inside the Minecraft container.</div>
           <pre class="logs" id="minecraft-logs">Loading logs...</pre>
         </div>
       </section>
@@ -742,13 +782,45 @@
           const row = document.createElement("tr");
           const cell = document.createElement("td");
           cell.colSpan = 3;
-          cell.textContent = "No player login history in latest.log";
+          cell.textContent = "No player login history in Docker logs";
           row.appendChild(cell);
           historyNode.appendChild(row);
         }
 
         document.getElementById("minecraft-logs").textContent =
           logs.length ? logs.join("\n") : "No log lines available";
+      };
+
+      const runMinecraftCommand = async (event) => {
+        event.preventDefault();
+        const input = document.getElementById("minecraft-command");
+        const output = document.getElementById("minecraft-console-output");
+        const command = input.value.trim();
+        if (!command) {
+          return;
+        }
+
+        output.textContent = "Sending...";
+        try {
+          const response = await fetch("/status/minecraft/command", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Northstar-Action": "1",
+            },
+            body: JSON.stringify({ command }),
+          });
+          const text = await response.text();
+          if (!response.ok) {
+            throw new Error(text || `status ${response.status}`);
+          }
+          const data = JSON.parse(text);
+          output.textContent = data.output || "Command sent.";
+          input.value = "";
+          await loadStatus();
+        } catch (error) {
+          output.textContent = `Command failed: ${error.message}`;
+        }
       };
 
       const loadStatus = async () => {
@@ -790,6 +862,7 @@
         }
       };
 
+      document.getElementById("minecraft-console").addEventListener("submit", runMinecraftCommand);
       loadPersistedHistory().then(loadStatus);
       setInterval(loadStatus, 30000);
     </script>

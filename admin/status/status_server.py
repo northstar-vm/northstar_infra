@@ -19,8 +19,8 @@ METRICS_RETENTION_DAYS = int(os.environ.get("METRICS_RETENTION_DAYS", "10"))
 METRICS_SAMPLE_SECONDS = int(os.environ.get("METRICS_SAMPLE_SECONDS", "60"))
 MEMINFO_PATH = "/host/proc/meminfo"
 MINECRAFT_HOST = os.environ.get("MINECRAFT_HOST", "northstar-minecraft")
+MINECRAFT_CONTAINER = os.environ.get("MINECRAFT_CONTAINER", "northstar-minecraft")
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
-MINECRAFT_LOG_PATH = "/minecraft-logs/latest.log"
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
 PLAYER_LOGIN_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
@@ -215,7 +215,7 @@ def decode_chunked(body):
 
 
 class DockerClient:
-    def request(self, method, path, payload=None):
+    def raw_request(self, method, path, payload=None):
         if not os.path.exists(DOCKER_SOCKET):
             raise RuntimeError("Docker socket is not available")
 
@@ -267,9 +267,17 @@ class DockerClient:
             detail = raw_body.decode("utf-8", errors="replace")
             raise RuntimeError(f"Docker API {status_code}: {detail}")
 
+        return status_code, headers, raw_body
+
+    def request(self, method, path, payload=None):
+        _, _, raw_body = self.raw_request(method, path, payload)
         if not raw_body:
             return None
         return json.loads(raw_body.decode("utf-8"))
+
+    def request_text(self, method, path, payload=None):
+        _, _, raw_body = self.raw_request(method, path, payload)
+        return demux_docker_stream(raw_body).decode("utf-8", errors="replace")
 
     def get(self, path):
         return self.request("GET", path)
@@ -281,6 +289,24 @@ class DockerClient:
 docker_client = DockerClient()
 
 
+def demux_docker_stream(data):
+    output = bytearray()
+    index = 0
+    while index + 8 <= len(data):
+        stream_type = data[index]
+        if stream_type not in (0, 1, 2):
+            return data
+        frame_size = int.from_bytes(data[index + 4 : index + 8], "big")
+        index += 8
+        if index + frame_size > len(data):
+            return data
+        output.extend(data[index : index + frame_size])
+        index += frame_size
+    if index == len(data):
+        return bytes(output)
+    return data
+
+
 def container_name(container):
     names = container.get("Names") or []
     if names:
@@ -290,6 +316,14 @@ def container_name(container):
 
 def is_allowed_container(name):
     return not ALLOWED_CONTAINERS or name in ALLOWED_CONTAINERS
+
+
+def find_container_by_name(name):
+    containers = docker_client.get("/containers/json?all=1") or []
+    for container in containers:
+        if container_name(container) == name:
+            return container
+    return None
 
 
 def calculate_cpu_percent(stats):
@@ -378,12 +412,7 @@ def perform_container_action(name, action):
     if not is_allowed_container(name):
         raise PermissionError("container is not allowlisted")
 
-    containers = docker_client.get("/containers/json?all=1") or []
-    match = None
-    for container in containers:
-        if container_name(container) == name:
-            match = container
-            break
+    match = find_container_by_name(name)
 
     if not match:
         raise FileNotFoundError("container not found")
@@ -482,20 +511,20 @@ def query_minecraft_status():
         }
 
 
+def read_minecraft_log_text(tail=500):
+    try:
+        container = find_container_by_name(MINECRAFT_CONTAINER)
+        if not container:
+            return "Minecraft container is not available.\n"
+        path = f"/containers/{quote(container['Id'])}/logs?stdout=1&stderr=1&tail={int(tail)}&timestamps=0"
+        text = docker_client.request_text("GET", path)
+        return text if text.strip() else "Minecraft Docker logs are empty.\n"
+    except Exception as error:
+        return f"Minecraft Docker logs unavailable: {error}\n"
+
+
 def read_full_minecraft_log():
-    if not os.path.exists(MINECRAFT_LOG_PATH):
-        return []
-
-    with open(MINECRAFT_LOG_PATH, "r", encoding="utf-8", errors="replace") as log_file:
-        return [line.rstrip() for line in log_file.readlines() if line.rstrip()]
-
-
-def read_minecraft_log_text():
-    lines = read_full_minecraft_log()
-    if not lines:
-        return "latest.log is not available yet.\n"
-
-    return "\n".join(lines) + "\n"
+    return [line.rstrip() for line in read_minecraft_log_text().splitlines() if line.rstrip()]
 
 
 def read_player_history():
@@ -518,6 +547,40 @@ def read_player_history():
             players[name]["last_login"] = seen_at
 
     return sorted(players.values(), key=lambda player: player["last_login"], reverse=True)
+
+
+def run_minecraft_command(command):
+    command = command.strip()
+    if command.startswith("/"):
+        command = command[1:].strip()
+    if not command:
+        raise ValueError("command is empty")
+    if len(command) > 180:
+        raise ValueError("command is too long")
+
+    container = find_container_by_name(MINECRAFT_CONTAINER)
+    if not container:
+        raise FileNotFoundError("Minecraft container not found")
+    if container.get("State") != "running":
+        raise RuntimeError(f"Minecraft container is {container.get('State', 'unknown')}")
+
+    exec_payload = {
+        "AttachStdout": True,
+        "AttachStderr": True,
+        "Tty": False,
+        "Cmd": ["rcon-cli", command],
+    }
+    exec_result = docker_client.request("POST", f"/containers/{quote(container['Id'])}/exec", exec_payload)
+    exec_id = exec_result.get("Id")
+    if not exec_id:
+        raise RuntimeError("Docker did not create exec session")
+
+    output = docker_client.request_text("POST", f"/exec/{quote(exec_id)}/start", {"Detach": False, "Tty": False})
+    return {
+        "ok": True,
+        "command": command,
+        "output": output.strip() or "Command sent.",
+    }
 
 
 def read_player_events():
@@ -697,7 +760,7 @@ def sampler_loop():
 class StatusHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path == "/minecraft/latest.log":
+        if parsed.path == "/minecraft/logs":
             body = read_minecraft_log_text().encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -742,6 +805,24 @@ class StatusHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/minecraft/command":
+            if self.headers.get("X-Northstar-Action") != "1":
+                self.send_error(403)
+                return
+
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                result = run_minecraft_command(str(payload.get("command", "")))
+                self.send_json(result)
+            except ValueError as error:
+                self.send_error(400, str(error))
+            except FileNotFoundError as error:
+                self.send_error(404, str(error))
+            except Exception as error:
+                self.send_error(500, str(error))
+            return
+
         if parsed.path != "/docker/action":
             self.send_error(404)
             return

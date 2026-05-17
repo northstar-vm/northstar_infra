@@ -75,7 +75,7 @@ CI/CD target:
 
 The admin domain is protected with Caddy Basic Auth. Caddy routes are tracked in `proxy/Caddyfile`, while secrets live in the ignored VM-only `proxy/.env`. File Browser relies on the Caddy login only.
 
-The portal home page shows VM CPU/RAM/disk, Docker container CPU/RAM/disk stats with safe start/stop/restart/pause controls, and Minecraft player/log history. The status API stores 10 days of samples in SQLite under `/opt/northstar/admin/status-data` and is not published directly to the internet.
+The portal home page shows VM CPU/RAM/disk, Docker container CPU/RAM/disk stats with safe start/stop/restart/pause controls, and Minecraft Docker logs/player history plus a narrow RCON command console. The status API stores 10 days of samples in SQLite under `/opt/northstar/admin/status-data` and is not published directly to the internet.
 
 Portainer has been removed. Use the built-in Docker panel for common actions, and SSH for anything dangerous or unusual.
 
