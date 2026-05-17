@@ -473,6 +473,12 @@ File Browser is configured for one safe upload/download folder:
 Host /opt/northstar/admin/files -> Container /srv
 ```
 
+The container runs as the VM `ubuntu` UID/GID and stores File Browser database/config files under:
+
+```text
+/opt/northstar/admin/filebrowser
+```
+
 Inside File Browser, `/opt/northstar/admin/files` appears as:
 
 ```text
@@ -483,18 +489,20 @@ File Browser uses `--noauth` and relies on the northstar Caddy Basic Auth gatewa
 
 ```bash
 sudo mkdir -p /opt/northstar/admin/files
-sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files
+sudo mkdir -p /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config
+sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files /opt/northstar/admin/filebrowser
 sudo chmod 775 /opt/northstar/admin/files
 sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files
 ```
 
-After changing from the old whole-VM mount, reset the File Browser database volume once:
+After changing from the old whole-VM mount, recreate the File Browser container:
 
 ```bash
 cd /opt/northstar/infra/admin
 docker compose stop filebrowser
 docker compose rm -f filebrowser
-docker volume rm admin_filebrowser_database
+sudo mkdir -p /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config
+sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files /opt/northstar/admin/filebrowser
 docker compose up -d filebrowser
 ```
 

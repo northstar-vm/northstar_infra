@@ -10,6 +10,8 @@ This repo should become the separate private GitHub repo `northstar-infra`. Do n
 sudo mkdir -p /opt/northstar/infra
 sudo mkdir -p /opt/northstar/admin/portal
 sudo mkdir -p /opt/northstar/admin/files
+sudo mkdir -p /opt/northstar/admin/filebrowser/database
+sudo mkdir -p /opt/northstar/admin/filebrowser/config
 sudo mkdir -p /opt/northstar/apps/minecraft/data
 sudo mkdir -p /opt/northstar/backups
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin
@@ -275,18 +277,20 @@ If drag-and-drop uploads fail, first fix the folder ownership and permissions on
 
 ```bash
 sudo mkdir -p /opt/northstar/admin/files
-sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files
+sudo mkdir -p /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config
+sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files /opt/northstar/admin/filebrowser
 sudo chmod 775 /opt/northstar/admin/files
 sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files
 ```
 
-After switching from the old whole-VM File Browser setup, reset the File Browser database volume once and recreate the service:
+After switching from the old whole-VM File Browser setup, recreate the service so it uses the host-owned database/config folders:
 
 ```bash
 cd /opt/northstar/infra/admin
 docker compose stop filebrowser
 docker compose rm -f filebrowser
-docker volume rm admin_filebrowser_database
+sudo mkdir -p /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config
+sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files /opt/northstar/admin/filebrowser
 docker compose up -d filebrowser
 ```
 

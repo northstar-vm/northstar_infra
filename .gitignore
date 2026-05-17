@@ -23,6 +23,7 @@ northstar_actions.pub
 # Runtime data
 admin/data/
 admin/files/
+admin/filebrowser/
 apps/minecraft/.env
 apps/minecraft/data/
 proxy/data/
