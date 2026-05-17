@@ -397,9 +397,6 @@ def read_container_stats():
                 stats_payload = {}
 
         memory_used, memory_limit, memory_percent = calculate_memory(stats_payload)
-        networks = stats_payload.get("networks", {})
-        rx_bytes = sum(item.get("rx_bytes", 0) for item in networks.values())
-        tx_bytes = sum(item.get("tx_bytes", 0) for item in networks.values())
         pids = stats_payload.get("pids_stats", {}).get("current", 0)
 
         result.append(
@@ -411,15 +408,12 @@ def read_container_stats():
                 "state": state,
                 "status": container.get("Status", ""),
                 "protected": name in PROTECTED_CONTAINERS,
-                "actions": [] if name in PROTECTED_CONTAINERS else sorted(DOCKER_ACTIONS),
                 "cpu_percent": calculate_cpu_percent(stats_payload),
                 "memory_used_mib": bytes_to_mib(memory_used),
                 "memory_limit_mib": bytes_to_mib(memory_limit),
                 "memory_percent": memory_percent,
                 "disk_rw_mib": bytes_to_mib(container.get("SizeRw") or 0),
                 "disk_rootfs_mib": bytes_to_mib(container.get("SizeRootFs") or 0),
-                "network_rx_mib": bytes_to_mib(rx_bytes),
-                "network_tx_mib": bytes_to_mib(tx_bytes),
                 "pids": pids,
             }
         )
@@ -551,10 +545,13 @@ def read_full_minecraft_log():
     return [line.rstrip() for line in read_minecraft_log_text().splitlines() if line.rstrip()]
 
 
-def read_player_history():
+def read_player_history(lines=None):
+    if lines is None:
+        lines = read_full_minecraft_log()
+
     players = {}
 
-    for line in read_full_minecraft_log():
+    for line in lines:
         match = PLAYER_LOGIN_PATTERN.match(line)
         if not match:
             continue
@@ -613,10 +610,10 @@ def run_container_exec(container_id, command):
     return docker_client.request_text("POST", f"/exec/{quote(exec_id)}/start", {"Detach": False, "Tty": False})
 
 
-def read_player_events():
+def read_player_events(lines):
     events = []
     uuid_by_player = {}
-    for line in read_full_minecraft_log():
+    for line in lines:
         uuid_match = PLAYER_UUID_PATTERN.search(line)
         if uuid_match:
             uuid_by_player[uuid_match.group("name")] = uuid_match.group("uuid")
@@ -641,7 +638,7 @@ def read_player_events():
 def store_player_events():
     observed = now_ts()
     lines = read_full_minecraft_log()
-    events = read_player_events()
+    events = read_player_events(lines)
     with open_db() as db:
         if lines:
             db.executemany(
@@ -913,15 +910,12 @@ def read_latest_container_history():
             "state": row[3],
             "status": f"last sampled at {time.strftime('%H:%M:%S', time.localtime(row[0]))}",
             "protected": row[2] in PROTECTED_CONTAINERS,
-            "actions": [] if row[2] in PROTECTED_CONTAINERS else sorted(DOCKER_ACTIONS),
             "cpu_percent": row[4],
             "memory_used_mib": row[5],
             "memory_limit_mib": row[6],
             "memory_percent": row[7],
             "disk_rw_mib": row[8],
             "disk_rootfs_mib": row[9],
-            "network_rx_mib": 0,
-            "network_tx_mib": 0,
             "pids": row[10],
             "stale": True,
         }
@@ -933,10 +927,11 @@ def build_status_payload(store=False):
     cpu = read_cpu()
     memory = read_memory()
     disk = read_disk()
+    minecraft_logs = read_full_minecraft_log()
     minecraft = {
         "status": query_minecraft_status(),
-        "logs": read_full_minecraft_log(),
-        "players": read_persisted_player_history() or read_player_history(),
+        "logs": minecraft_logs,
+        "players": read_persisted_player_history() or read_player_history(minecraft_logs),
     }
     docker = read_container_stats()
 
