@@ -525,7 +525,7 @@
             <input id="minecraft-command" type="text" autocomplete="off" maxlength="180" placeholder="time set day">
             <button type="submit">Send</button>
           </form>
-          <div class="console-output" id="minecraft-console-output">Commands run through rcon-cli inside the Minecraft container.</div>
+          <div class="console-output" id="minecraft-console-output">Commands are sent to the Minecraft container console.</div>
           <pre class="logs" id="minecraft-logs">Loading logs...</pre>
         </div>
       </section>
@@ -599,6 +599,13 @@
           `1 min load ${cpu.load_1m ?? "--"} on ${cpu.cores ?? "--"} cores`;
         pushHistory("cpu", percent);
         renderSparkline("cpu");
+      };
+
+      const setStoredMetric = (name, percent, note) => {
+        const value = Math.max(0, Math.min(100, Number(percent || 0)));
+        document.getElementById(`${name}-percent`).textContent = `${value.toFixed(1)}%`;
+        document.getElementById(`${name}-bar`).style.width = `${value}%`;
+        document.getElementById(`${name}-note`).textContent = note;
       };
 
       const formatMib = (value) => {
@@ -718,7 +725,12 @@
           const actions = document.createElement("div");
           actions.className = "actions";
 
-          if (container.protected) {
+          if (container.stale) {
+            const stale = document.createElement("span");
+            stale.className = "hint";
+            stale.textContent = "Waiting live";
+            actions.appendChild(stale);
+          } else if (container.protected) {
             const locked = document.createElement("span");
             locked.className = "hint";
             locked.textContent = "Protected";
@@ -856,6 +868,13 @@
           if (vm.length) {
             replaceHistory("cpu", vm.map((sample) => sample.cpu_percent));
             replaceHistory("memory", vm.map((sample) => sample.memory_percent));
+            const latest = vm[vm.length - 1];
+            setStoredMetric("cpu", latest.cpu_percent, "Loading live CPU...");
+            setStoredMetric("memory", latest.memory_percent, `${latest.memory_used_gib} GiB used in last stored sample`);
+            setStoredMetric("disk", latest.disk_percent, `${latest.disk_used_gib} GiB used in last stored sample`);
+          }
+          if ((data.containers || []).length) {
+            setDocker({ available: true, containers: data.containers }, data.summary || {});
           }
         } catch (error) {
           return;

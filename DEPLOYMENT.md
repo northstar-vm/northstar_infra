@@ -249,7 +249,7 @@ docker compose up -d
 
 File Browser is configured with no internal login and relies on Caddy Basic Auth for the northstar admin domain. Use `vallutto` for the Caddy Basic Auth username in `/opt/northstar/infra/proxy/.env`.
 
-The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, and Minecraft Docker logs. It stores 10 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers and a narrow Minecraft RCON console; Caddy, File Browser, and the status service are protected from browser Docker actions so you do not lock yourself out.
+The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, and Minecraft Docker logs. It stores 10 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers and a narrow Minecraft command console; Caddy, File Browser, and the status service are protected from browser Docker actions so you do not lock yourself out.
 
 Check the status service:
 
@@ -259,7 +259,8 @@ docker compose ps status
 docker compose logs --tail=40 status
 ```
 
-The Minecraft panel uses Docker logs for its raw log viewer. Commands entered in the panel are sent through `rcon-cli` inside the Minecraft container, not through a shell.
+The Minecraft panel uses Docker logs for its raw log viewer. Commands entered in the panel are sent through `mc-send-to-console` inside the Minecraft container, with `rcon-cli` only as a fallback, never through a shell.
+The Minecraft compose file enables `CREATE_CONSOLE_IN_PIPE=TRUE` so that console command path is available after the next intentional Minecraft restart/recreate.
 
 File Browser mounts only the safe admin files folder. The host path is:
 

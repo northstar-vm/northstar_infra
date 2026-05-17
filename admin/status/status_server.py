@@ -36,6 +36,9 @@ PROTECTED_CONTAINERS = {
     if name.strip()
 }
 DOCKER_ACTIONS = {"start", "stop", "restart", "pause", "unpause"}
+LATEST_PAYLOAD = None
+LATEST_PAYLOAD_TS = 0
+PAYLOAD_LOCK = threading.Lock()
 
 
 def bytes_to_gib(value):
@@ -564,23 +567,29 @@ def run_minecraft_command(command):
     if container.get("State") != "running":
         raise RuntimeError(f"Minecraft container is {container.get('State', 'unknown')}")
 
-    exec_payload = {
-        "AttachStdout": True,
-        "AttachStderr": True,
-        "Tty": False,
-        "Cmd": ["rcon-cli", command],
-    }
-    exec_result = docker_client.request("POST", f"/containers/{quote(container['Id'])}/exec", exec_payload)
-    exec_id = exec_result.get("Id")
-    if not exec_id:
-        raise RuntimeError("Docker did not create exec session")
-
-    output = docker_client.request_text("POST", f"/exec/{quote(exec_id)}/start", {"Detach": False, "Tty": False})
+    try:
+        output = run_container_exec(container["Id"], ["mc-send-to-console", command])
+    except Exception:
+        output = run_container_exec(container["Id"], ["rcon-cli", command])
     return {
         "ok": True,
         "command": command,
         "output": output.strip() or "Command sent.",
     }
+
+
+def run_container_exec(container_id, command):
+    exec_payload = {
+        "AttachStdout": True,
+        "AttachStderr": True,
+        "Tty": False,
+        "Cmd": command,
+    }
+    exec_result = docker_client.request("POST", f"/containers/{quote(container_id)}/exec", exec_payload)
+    exec_id = exec_result.get("Id")
+    if not exec_id:
+        raise RuntimeError("Docker did not create exec session")
+    return docker_client.request_text("POST", f"/exec/{quote(exec_id)}/start", {"Detach": False, "Tty": False})
 
 
 def read_player_events():
@@ -723,6 +732,47 @@ def read_history_summary():
     }
 
 
+def read_latest_container_history():
+    with open_db() as db:
+        rows = db.execute(
+            """
+            SELECT cs.ts, cs.container_id, cs.name, cs.state, cs.cpu_percent,
+                   cs.memory_used_mib, cs.memory_limit_mib, cs.memory_percent,
+                   cs.disk_rw_mib, cs.disk_rootfs_mib, cs.pids
+            FROM container_samples cs
+            INNER JOIN (
+              SELECT name, MAX(ts) AS ts
+              FROM container_samples
+              GROUP BY name
+            ) latest ON latest.name = cs.name AND latest.ts = cs.ts
+            ORDER BY cs.name
+            """
+        ).fetchall()
+
+    return [
+        {
+            "ts": row[0],
+            "id": row[1],
+            "name": row[2],
+            "state": row[3],
+            "status": f"last sampled at {time.strftime('%H:%M:%S', time.localtime(row[0]))}",
+            "protected": row[2] in PROTECTED_CONTAINERS,
+            "actions": [] if row[2] in PROTECTED_CONTAINERS else sorted(DOCKER_ACTIONS),
+            "cpu_percent": row[4],
+            "memory_used_mib": row[5],
+            "memory_limit_mib": row[6],
+            "memory_percent": row[7],
+            "disk_rw_mib": row[8],
+            "disk_rootfs_mib": row[9],
+            "network_rx_mib": 0,
+            "network_tx_mib": 0,
+            "pids": row[10],
+            "stale": True,
+        }
+        for row in rows
+    ]
+
+
 def build_status_payload(store=False):
     cpu = read_cpu()
     memory = read_memory()
@@ -737,7 +787,7 @@ def build_status_payload(store=False):
     if store:
         store_sample(cpu, memory, disk, minecraft, docker)
 
-    return {
+    payload = {
         "cpu": cpu,
         "memory": memory,
         "disk": disk,
@@ -745,12 +795,27 @@ def build_status_payload(store=False):
         "minecraft": minecraft,
         "history": read_history_summary(),
     }
+    return payload
+
+
+def set_latest_payload(payload):
+    global LATEST_PAYLOAD, LATEST_PAYLOAD_TS
+    with PAYLOAD_LOCK:
+        LATEST_PAYLOAD = payload
+        LATEST_PAYLOAD_TS = now_ts()
+
+
+def get_latest_payload(max_age=180):
+    with PAYLOAD_LOCK:
+        if LATEST_PAYLOAD and now_ts() - LATEST_PAYLOAD_TS <= max_age:
+            return LATEST_PAYLOAD
+    return None
 
 
 def sampler_loop():
     while True:
         try:
-            build_status_payload(store=True)
+            set_latest_payload(build_status_payload(store=True))
             prune_history()
         except Exception:
             pass
@@ -775,7 +840,7 @@ class StatusHandler(BaseHTTPRequestHandler):
             limit = min(int(query.get("limit", ["120"])[0]), 500)
             with open_db() as db:
                 vm_rows = db.execute(
-                    "SELECT ts, cpu_percent, memory_percent, disk_percent FROM vm_samples ORDER BY ts DESC LIMIT ?",
+                    "SELECT ts, cpu_percent, memory_percent, memory_used_gib, disk_percent, disk_used_gib FROM vm_samples ORDER BY ts DESC LIMIT ?",
                     (limit,),
                 ).fetchall()
             payload = {
@@ -784,10 +849,14 @@ class StatusHandler(BaseHTTPRequestHandler):
                         "ts": row[0],
                         "cpu_percent": row[1],
                         "memory_percent": row[2],
-                        "disk_percent": row[3],
+                        "memory_used_gib": row[3],
+                        "disk_percent": row[4],
+                        "disk_used_gib": row[5],
                     }
                     for row in reversed(vm_rows)
-                ]
+                ],
+                "containers": read_latest_container_history(),
+                "summary": read_history_summary(),
             }
             self.send_json(payload)
             return
@@ -799,7 +868,10 @@ class StatusHandler(BaseHTTPRequestHandler):
         if parsed.path == "/health":
             payload = {"ok": True}
         else:
-            payload = build_status_payload(store=True)
+            payload = get_latest_payload()
+            if not payload:
+                payload = build_status_payload(store=True)
+                set_latest_payload(payload)
 
         self.send_json(payload)
 
