@@ -30,6 +30,7 @@ fi
 if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
   sudo mkdir -p /opt/northstar/apps/minecraft/data
   sudo chown -R ubuntu:ubuntu /opt/northstar/apps/minecraft
+  sudo chmod -R u+rwX,g+rwX /opt/northstar/apps/minecraft/data
 
   cd "$INFRA_DIR/apps/minecraft"
   docker compose up -d
