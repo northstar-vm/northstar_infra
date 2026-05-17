@@ -4,6 +4,32 @@ These steps assume you are SSH'd into the VM as `ubuntu`.
 
 This repo should become the separate private GitHub repo `northstar-infra`. Do not place these files inside `/opt/northstar/apps/quizzy` or the `cruetto/IndividualTeacher` app repo.
 
+## GitHub Actions
+
+This repo uses two workflows:
+
+- `CI/CD`: runs automatically on push and pull request. Pushes to `main` deploy infra after validation passes.
+- `Deploy`: runs manually from GitHub Actions with a target of `infra`, `cv`, or `all`.
+
+Create these GitHub repository secrets before running deploy:
+
+```text
+NORTHSTAR_HOST=130.61.33.233
+NORTHSTAR_USER=ubuntu
+NORTHSTAR_SSH_KEY=<private deploy key with access to the VM>
+```
+
+Normal update flow:
+
+```bash
+git add .
+git commit -m "Describe the change"
+git push
+```
+
+After pushing, CI runs automatically. To deploy, open GitHub Actions, choose `Deploy`, click `Run workflow`, and pick the target.
+For pushes to `main`, infra deployment runs automatically after CI passes. Use the manual `Deploy` workflow only when you want to redeploy without a new commit, deploy `cv`, or deploy `all`.
+
 ## 1. Prepare Folders
 
 ```bash

@@ -1,0 +1,52 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate shell scripts
+        run: |
+          bash -n scripts/deploy-infra.sh
+          bash -n scripts/deploy-cv.sh
+          bash -n scripts/backup-minecraft.sh
+
+      - name: Validate Python
+        run: python3 -m py_compile admin/status/status_server.py
+
+      - name: Validate Docker Compose files
+        run: |
+          docker compose -f admin/docker-compose.yml config >/dev/null
+          docker compose -f apps/cv/docker-compose.yml config >/dev/null
+          docker compose -f apps/minecraft/docker-compose.yml config >/dev/null
+          docker compose --env-file proxy/.env.example -f proxy/docker-compose.yml config >/dev/null
+
+  deploy-infra:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: northstar-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Deploy infra on Northstar VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.NORTHSTAR_HOST }}
+          username: ${{ secrets.NORTHSTAR_USER }}
+          key: ${{ secrets.NORTHSTAR_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            bash /opt/northstar/infra/scripts/deploy-infra.sh

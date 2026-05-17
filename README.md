@@ -79,6 +79,24 @@ The portal home page shows VM CPU/RAM/disk, Docker container CPU/RAM/disk stats 
 
 Portainer has been removed. Use the built-in Docker panel for common actions, and SSH for anything dangerous or unusual.
 
+## CI/CD
+
+GitHub Actions are active in `.github/workflows`:
+
+- `CI/CD` runs on pushes and pull requests. It validates shell scripts, Python syntax, and Docker Compose files.
+- Pushes to `main` automatically run `/opt/northstar/infra/scripts/deploy-infra.sh` on the VM after validation passes.
+- `Deploy` is still available manually from the GitHub Actions tab. Choose `infra`, `cv`, or `all`.
+
+Add these repository secrets in GitHub before using deploy:
+
+```text
+NORTHSTAR_HOST=130.61.33.233
+NORTHSTAR_USER=ubuntu
+NORTHSTAR_SSH_KEY=<private deploy key with access to the VM>
+```
+
+Automatic deploy requires the GitHub secrets below. Manual deploy uses the same secrets.
+
 ## File Browser Scope
 
 File Browser is configured to expose one upload/download folder:

@@ -1,0 +1,52 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        required: true
+        default: infra
+        type: choice
+        options:
+          - infra
+          - cv
+          - all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: northstar-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on Northstar VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.NORTHSTAR_HOST }}
+          username: ${{ secrets.NORTHSTAR_USER }}
+          key: ${{ secrets.NORTHSTAR_SSH_KEY }}
+          script: |
+            set -euo pipefail
+
+            case "${{ inputs.target }}" in
+              infra)
+                bash /opt/northstar/infra/scripts/deploy-infra.sh
+                ;;
+              cv)
+                bash /opt/northstar/infra/scripts/deploy-cv.sh
+                ;;
+              all)
+                bash /opt/northstar/infra/scripts/deploy-infra.sh
+                bash /opt/northstar/infra/scripts/deploy-cv.sh
+                ;;
+              *)
+                echo "Unknown deploy target: ${{ inputs.target }}" >&2
+                exit 1
+                ;;
+            esac
+
