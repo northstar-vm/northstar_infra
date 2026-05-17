@@ -218,18 +218,25 @@ Active folder:
 cd /opt/northstar/infra/proxy
 ```
 
-Real Caddyfile:
+Tracked Caddyfile:
 
 ```text
 /opt/northstar/infra/proxy/Caddyfile
 ```
 
-Important: real `proxy/Caddyfile` is VM-only and ignored by git.
-
-Tracked template:
+Important: `proxy/Caddyfile` is tracked and uses environment placeholders. Real VM-only values live in:
 
 ```text
-/opt/northstar/infra/proxy/Caddyfile.example
+/opt/northstar/infra/proxy/.env
+```
+
+Required env values:
+
+```text
+CADDY_EMAIL=...
+ADMIN_USERNAME=vallutto
+ADMIN_PASSWORD_HASH=...
+QUIZZY_UPSTREAM=...
 ```
 
 Reload Caddy:
@@ -607,7 +614,7 @@ secrets/
 *.crt
 northstar_actions
 northstar_actions.pub
-proxy/Caddyfile
+proxy/.env
 apps/minecraft/.env
 apps/minecraft/data/
 ```
@@ -622,10 +629,10 @@ git status --short --ignored
 Expected:
 
 ```text
-!! proxy/Caddyfile
+!! proxy/.env
 ```
 
-That means real Caddyfile is ignored correctly.
+That means real Caddy secret values are ignored correctly.
 
 Minecraft VM-only runtime files should also be ignored:
 
@@ -907,7 +914,7 @@ Expected:
 
 ## What Not To Do
 
-- Do not commit real `proxy/Caddyfile`.
+- Do not commit real `proxy/.env`.
 - Do not commit private SSH keys.
 - Do not commit real `.env` files.
 - Do not expose Docker socket publicly.

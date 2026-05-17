@@ -3,6 +3,11 @@ services:
     image: caddy:2
     container_name: northstar-caddy
     restart: unless-stopped
+    environment:
+      CADDY_EMAIL: ${CADDY_EMAIL}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      QUIZZY_UPSTREAM: ${QUIZZY_UPSTREAM}
     ports:
       - "80:80"
       - "443:443"

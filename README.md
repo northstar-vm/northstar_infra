@@ -73,7 +73,7 @@ CI/CD target:
 - `https://northstar.attentionisallineed.xyz/files/` - File Browser
 - `https://northstar.attentionisallineed.xyz/status/api` - private VM, Docker, Minecraft, and history API used by the admin portal
 
-The admin domain is protected with Caddy Basic Auth. Use `vallutto` as the admin username on the VM-only Caddyfile. File Browser relies on the Caddy login only.
+The admin domain is protected with Caddy Basic Auth. Caddy routes are tracked in `proxy/Caddyfile`, while secrets live in the ignored VM-only `proxy/.env`. File Browser relies on the Caddy login only.
 
 The portal home page shows VM CPU/RAM/disk, Docker container CPU/RAM/disk stats with safe start/stop/restart/pause controls, and Minecraft player/log history. The status API stores 30 days of samples in SQLite under `/opt/northstar/admin/status-data` and is not published directly to the internet.
 
@@ -181,7 +181,7 @@ Generate a Caddy Basic Auth hash on the VM:
 docker run --rm caddy:2 caddy hash-password --plaintext 'replace-this-password'
 ```
 
-Then put the resulting hash only in the real VM Caddyfile.
+Then put the resulting hash only in the real VM `proxy/.env` as `ADMIN_PASSWORD_HASH`.
 
 ## Cloudflare
 

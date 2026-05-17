@@ -247,7 +247,7 @@ cd /opt/northstar/infra/admin
 docker compose up -d
 ```
 
-File Browser is configured with no internal login and relies on Caddy Basic Auth for the northstar admin domain. Use `vallutto` for the Caddy Basic Auth username in the real VM Caddyfile.
+File Browser is configured with no internal login and relies on Caddy Basic Auth for the northstar admin domain. Use `vallutto` for the Caddy Basic Auth username in `/opt/northstar/infra/proxy/.env`.
 
 The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, and Minecraft logs. It stores 30 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers; Caddy, File Browser, and the status service are protected from browser actions so you do not lock yourself out.
 
@@ -310,50 +310,26 @@ Generate a Caddy Basic Auth hash on the VM:
 docker run --rm caddy:2 caddy hash-password --plaintext 'your-real-password'
 ```
 
-Create or update `/opt/northstar/infra/proxy/Caddyfile` using `proxy/Caddyfile.example` as a template.
+Caddy routes are now git-managed in `/opt/northstar/infra/proxy/Caddyfile`. Keep secrets and VM-specific upstreams in the ignored env file:
 
-Important: merge the admin host into the existing proxy config. Do not delete or rewrite the existing working Quizzy host unless you intentionally need to update that app route.
-
-Replace:
-
-```text
-ADMIN_PASSWORD_HASH_FROM_CADDY
+```bash
+cd /opt/northstar/infra/proxy
+cp .env.example .env
+nano .env
 ```
 
-with the generated hash on the VM only. The admin username should be `vallutto`.
+Set:
 
-The CV route should point to the CV Nginx service:
-
-```caddy
-attentionisallineed.xyz {
-	redir https://cv.attentionisallineed.xyz{uri}
-}
-
-www.attentionisallineed.xyz {
-	redir https://cv.attentionisallineed.xyz{uri}
-}
-
-cv.attentionisallineed.xyz {
-	encode zstd gzip
-	reverse_proxy cv-web:80
-}
+```env
+CADDY_EMAIL=your-real-email@example.com
+ADMIN_USERNAME=vallutto
+ADMIN_PASSWORD_HASH='<hash from caddy hash-password>'
+QUIZZY_UPSTREAM=host.docker.internal:8080
 ```
 
-The northstar admin host should include these internal admin routes:
+Keep single quotes around `ADMIN_PASSWORD_HASH` so Compose does not treat the bcrypt `$` characters as environment-variable syntax.
 
-```caddy
-handle /files/* {
-	reverse_proxy filebrowser:80 {
-		header_up -Authorization
-	}
-}
-
-redir /files /files/
-
-handle_path /status/* {
-	reverse_proxy status:8080
-}
-```
+If Quizzy is not reachable through `host.docker.internal:8080` on the VM, set `QUIZZY_UPSTREAM` to the current working upstream from the old Caddyfile before replacing it.
 
 ## 7. Start or Reload Caddy
 

@@ -36,6 +36,10 @@ if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
 fi
 
 cd "$INFRA_DIR/proxy"
+if [ ! -f .env ]; then
+  echo "Missing $INFRA_DIR/proxy/.env. Copy proxy/.env.example to proxy/.env on the VM and fill in real values." >&2
+  exit 1
+fi
 docker compose up -d
 docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || true
 

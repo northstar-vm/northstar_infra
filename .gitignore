@@ -38,4 +38,4 @@ filebrowser.db
 logs/
 
 # Real VM-only Caddy config
-proxy/Caddyfile
+proxy/.env
