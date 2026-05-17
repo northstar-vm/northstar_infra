@@ -485,6 +485,7 @@ File Browser uses `--noauth` and relies on the northstar Caddy Basic Auth gatewa
 sudo mkdir -p /opt/northstar/admin/files
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files
 sudo chmod 775 /opt/northstar/admin/files
+sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files
 ```
 
 After changing from the old whole-VM mount, reset the File Browser database volume once:

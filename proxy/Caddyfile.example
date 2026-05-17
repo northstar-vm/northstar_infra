@@ -37,7 +37,9 @@ northstar.attentionisallineed.xyz {
 	redir /docker /docker/
 
 	handle /files/* {
-		reverse_proxy filebrowser:80
+		reverse_proxy filebrowser:80 {
+			header_up -Authorization
+		}
 	}
 
 	redir /files /files/

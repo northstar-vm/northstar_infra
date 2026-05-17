@@ -11,6 +11,7 @@ docker network inspect northstar_web >/dev/null 2>&1 || docker network create no
 sudo mkdir -p /opt/northstar/admin/files /opt/northstar/backups /opt/northstar/apps
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files /opt/northstar/backups /opt/northstar/apps
 sudo chmod 775 /opt/northstar/admin/files
+sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files
 
 cd "$INFRA_DIR/admin"
 docker compose up -d

@@ -277,6 +277,7 @@ If drag-and-drop uploads fail, first fix the folder ownership and permissions on
 sudo mkdir -p /opt/northstar/admin/files
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files
 sudo chmod 775 /opt/northstar/admin/files
+sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files
 ```
 
 After switching from the old whole-VM File Browser setup, reset the File Browser database volume once and recreate the service:
@@ -346,7 +347,9 @@ handle_path /docker/* {
 redir /docker /docker/
 
 handle /files/* {
-	reverse_proxy filebrowser:80
+	reverse_proxy filebrowser:80 {
+		header_up -Authorization
+	}
 }
 
 redir /files /files/
