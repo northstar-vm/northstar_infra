@@ -511,13 +511,15 @@
             <thead>
               <tr>
                 <th>Username</th>
+                <th>UUID</th>
                 <th>First login</th>
                 <th>Last login</th>
+                <th>Joins</th>
               </tr>
             </thead>
             <tbody id="minecraft-player-history">
               <tr>
-                <td colspan="3">Loading players...</td>
+                <td colspan="5">Loading players...</td>
               </tr>
             </tbody>
           </table>
@@ -614,6 +616,14 @@
           return `${(number / 1024).toFixed(1)} GiB`;
         }
         return `${number.toFixed(1)} MiB`;
+      };
+
+      const formatSeen = (timestamp, fallback) => {
+        if (!timestamp) {
+          return fallback || "-";
+        }
+        const date = new Date(Number(timestamp) * 1000);
+        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
       };
 
       const actionLabel = {
@@ -783,7 +793,13 @@
         if (playerHistory.length) {
           for (const player of playerHistory) {
             const row = document.createElement("tr");
-            for (const value of [player.name, player.first_login, player.last_login]) {
+            for (const value of [
+              player.name,
+              player.uuid || "-",
+              formatSeen(player.first_seen_ts, player.first_login),
+              formatSeen(player.last_seen_ts, player.last_login),
+              player.joins ?? "-",
+            ]) {
               const cell = document.createElement("td");
               cell.textContent = value;
               row.appendChild(cell);
@@ -793,7 +809,7 @@
         } else {
           const row = document.createElement("tr");
           const cell = document.createElement("td");
-          cell.colSpan = 3;
+          cell.colSpan = 5;
           cell.textContent = "No player login history in Docker logs";
           row.appendChild(cell);
           historyNode.appendChild(row);
@@ -875,6 +891,9 @@
           }
           if ((data.containers || []).length) {
             setDocker({ available: true, containers: data.containers }, data.summary || {});
+          }
+          if (data.minecraft) {
+            setMinecraft(data.minecraft);
           }
         } catch (error) {
           return;

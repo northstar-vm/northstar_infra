@@ -451,6 +451,7 @@ docker compose logs --tail=40 status
 ```
 
 The portal homepage shows VM CPU/RAM/disk usage, Docker container stats and safe actions, and a Minecraft panel with player count, persisted player history, Docker logs, and a command console. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
+Player profiles in SQLite store nickname, UUID when available from logs, first seen, last seen, join count, leave count, and last action.
 
 Status service design:
 

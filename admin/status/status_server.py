@@ -25,6 +25,7 @@ STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
 PLAYER_LOGIN_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
 PLAYER_LOGOUT_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) left the game$")
+PLAYER_UUID_PATTERN = re.compile(r"UUID of player (?P<name>[A-Za-z0-9_]{3,16}) is (?P<uuid>[0-9a-fA-F-]{32,36})")
 ALLOWED_CONTAINERS = {
     name.strip()
     for name in os.environ.get("DOCKER_ALLOWED_CONTAINERS", "").split(",")
@@ -108,6 +109,25 @@ def init_db():
               raw_line TEXT NOT NULL UNIQUE
             );
             CREATE INDEX IF NOT EXISTS idx_player_events_player ON player_events(player, observed_ts);
+
+            CREATE TABLE IF NOT EXISTS player_profiles (
+              player TEXT PRIMARY KEY,
+              uuid TEXT,
+              first_seen_ts INTEGER NOT NULL,
+              first_seen_time TEXT NOT NULL,
+              last_seen_ts INTEGER NOT NULL,
+              last_seen_time TEXT NOT NULL,
+              last_action TEXT NOT NULL,
+              joins INTEGER NOT NULL DEFAULT 0,
+              leaves INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_player_profiles_last_seen ON player_profiles(last_seen_ts);
+
+            CREATE TABLE IF NOT EXISTS minecraft_log_lines (
+              raw_line TEXT PRIMARY KEY,
+              observed_ts INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_minecraft_log_lines_observed ON minecraft_log_lines(observed_ts);
             """
         )
 
@@ -118,6 +138,7 @@ def prune_history():
         db.execute("DELETE FROM vm_samples WHERE ts < ?", (cutoff,))
         db.execute("DELETE FROM container_samples WHERE ts < ?", (cutoff,))
         db.execute("DELETE FROM minecraft_samples WHERE ts < ?", (cutoff,))
+        db.execute("DELETE FROM minecraft_log_lines WHERE observed_ts < ?", (cutoff,))
 
 
 def read_memory():
@@ -594,7 +615,12 @@ def run_container_exec(container_id, command):
 
 def read_player_events():
     events = []
+    uuid_by_player = {}
     for line in read_full_minecraft_log():
+        uuid_match = PLAYER_UUID_PATTERN.search(line)
+        if uuid_match:
+            uuid_by_player[uuid_match.group("name")] = uuid_match.group("uuid")
+
         login = PLAYER_LOGIN_PATTERN.match(line)
         logout = PLAYER_LOGOUT_PATTERN.match(line)
         match = login or logout
@@ -604,6 +630,7 @@ def read_player_events():
             {
                 "log_time": match.group("time"),
                 "player": match.group("name"),
+                "uuid": uuid_by_player.get(match.group("name")),
                 "action": "joined" if login else "left",
                 "raw_line": line,
             }
@@ -613,17 +640,95 @@ def read_player_events():
 
 def store_player_events():
     observed = now_ts()
+    lines = read_full_minecraft_log()
     events = read_player_events()
-    if not events:
-        return
     with open_db() as db:
-        db.executemany(
-            """
-            INSERT OR IGNORE INTO player_events (observed_ts, log_time, player, action, raw_line)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            [(observed, event["log_time"], event["player"], event["action"], event["raw_line"]) for event in events],
-        )
+        if lines:
+            db.executemany(
+                """
+                INSERT OR IGNORE INTO minecraft_log_lines (raw_line, observed_ts)
+                VALUES (?, ?)
+                """,
+                [(line, observed) for line in lines[-500:]],
+            )
+
+        for line in lines:
+            uuid_match = PLAYER_UUID_PATTERN.search(line)
+            if not uuid_match:
+                continue
+            player = uuid_match.group("name")
+            player_uuid = uuid_match.group("uuid")
+            existing = db.execute("SELECT first_seen_ts, first_seen_time FROM player_profiles WHERE player = ?", (player,)).fetchone()
+            if existing:
+                db.execute(
+                    """
+                    UPDATE player_profiles
+                    SET uuid = ?
+                    WHERE player = ?
+                    """,
+                    (player_uuid, player),
+                )
+            else:
+                db.execute(
+                    """
+                    INSERT INTO player_profiles
+                    (player, uuid, first_seen_ts, first_seen_time, last_seen_ts, last_seen_time, last_action, joins, leaves)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
+                    """,
+                    (player, player_uuid, observed, "uuid", observed, "uuid", "uuid"),
+                )
+
+        if not events:
+            return
+
+        for event in events:
+            cursor = db.execute(
+                """
+                INSERT OR IGNORE INTO player_events (observed_ts, log_time, player, action, raw_line)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (observed, event["log_time"], event["player"], event["action"], event["raw_line"]),
+            )
+            if cursor.rowcount == 0:
+                continue
+
+            player = event["player"]
+            existing = db.execute("SELECT player FROM player_profiles WHERE player = ?", (player,)).fetchone()
+            join_delta = 1 if event["action"] == "joined" else 0
+            leave_delta = 1 if event["action"] == "left" else 0
+            if existing:
+                db.execute(
+                    """
+                    UPDATE player_profiles
+                    SET uuid = COALESCE(?, uuid),
+                        last_seen_ts = ?,
+                        last_seen_time = ?,
+                        last_action = ?,
+                        joins = joins + ?,
+                        leaves = leaves + ?
+                    WHERE player = ?
+                    """,
+                    (event.get("uuid"), observed, event["log_time"], event["action"], join_delta, leave_delta, player),
+                )
+            else:
+                db.execute(
+                    """
+                    INSERT INTO player_profiles
+                    (player, uuid, first_seen_ts, first_seen_time, last_seen_ts, last_seen_time, last_action, joins, leaves)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        player,
+                        event.get("uuid"),
+                        observed,
+                        event["log_time"],
+                        observed,
+                        event["log_time"],
+                        event["action"],
+                        join_delta,
+                        leave_delta,
+                    ),
+                )
 
 
 def read_persisted_player_history():
@@ -632,26 +737,77 @@ def read_persisted_player_history():
             """
             SELECT
               player,
-              MIN(log_time) AS first_login,
-              MAX(log_time) AS last_seen,
-              SUM(CASE WHEN action = 'joined' THEN 1 ELSE 0 END) AS joins,
-              SUM(CASE WHEN action = 'left' THEN 1 ELSE 0 END) AS leaves
-            FROM player_events
-            GROUP BY player
-            ORDER BY MAX(observed_ts) DESC, player ASC
+              uuid,
+              first_seen_ts,
+              first_seen_time,
+              last_seen_ts,
+              last_seen_time,
+              last_action,
+              joins,
+              leaves
+            FROM player_profiles
+            ORDER BY last_seen_ts DESC, player ASC
             LIMIT 80
             """
         ).fetchall()
     return [
         {
             "name": row[0],
-            "first_login": row[1],
-            "last_login": row[2],
-            "joins": row[3],
-            "leaves": row[4],
+            "uuid": row[1] or "",
+            "first_seen_ts": row[2],
+            "first_login": row[3],
+            "last_seen_ts": row[4],
+            "last_login": row[5],
+            "last_action": row[6],
+            "joins": row[7],
+            "leaves": row[8],
         }
         for row in rows
     ]
+
+
+def read_stored_minecraft_logs(limit=500):
+    with open_db() as db:
+        rows = db.execute(
+            """
+            SELECT raw_line
+            FROM minecraft_log_lines
+            ORDER BY observed_ts DESC, rowid DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [row[0] for row in reversed(rows)]
+
+
+def read_latest_minecraft_history():
+    with open_db() as db:
+        row = db.execute(
+            """
+            SELECT ts, reachable, online, max_players, version
+            FROM minecraft_samples
+            ORDER BY ts DESC
+            LIMIT 1
+            """
+        ).fetchone()
+    if not row:
+        return {
+            "reachable": False,
+            "online": 0,
+            "max": 0,
+            "sample": [],
+            "version": "unknown",
+            "stale": True,
+        }
+    return {
+        "ts": row[0],
+        "reachable": bool(row[1]),
+        "online": row[2],
+        "max": row[3],
+        "sample": [],
+        "version": row[4],
+        "stale": True,
+    }
 
 
 def store_sample(cpu, memory, disk, minecraft, docker):
@@ -721,7 +877,7 @@ def read_history_summary():
     with open_db() as db:
         vm_count = db.execute("SELECT COUNT(*) FROM vm_samples").fetchone()[0]
         container_count = db.execute("SELECT COUNT(*) FROM container_samples").fetchone()[0]
-        player_count = db.execute("SELECT COUNT(DISTINCT player) FROM player_events").fetchone()[0]
+        player_count = db.execute("SELECT COUNT(*) FROM player_profiles").fetchone()[0]
         last_sample = db.execute("SELECT MAX(ts) FROM vm_samples").fetchone()[0]
     return {
         "retention_days": METRICS_RETENTION_DAYS,
@@ -856,6 +1012,11 @@ class StatusHandler(BaseHTTPRequestHandler):
                     for row in reversed(vm_rows)
                 ],
                 "containers": read_latest_container_history(),
+                "minecraft": {
+                    "status": read_latest_minecraft_history(),
+                    "logs": read_stored_minecraft_logs(),
+                    "players": read_persisted_player_history(),
+                },
                 "summary": read_history_summary(),
             }
             self.send_json(payload)
