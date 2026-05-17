@@ -28,9 +28,22 @@ if [ -d /opt/northstar/apps/cv/.git ]; then
 fi
 
 if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
+  PAPER_GLOBAL_CONFIG="/opt/northstar/apps/minecraft/data/config/paper-global.yml"
+
   sudo mkdir -p /opt/northstar/apps/minecraft/data
   sudo chown -R ubuntu:ubuntu /opt/northstar/apps/minecraft
   sudo chmod -R u+rwX,g+rwX /opt/northstar/apps/minecraft/data
+  sudo mkdir -p "$(dirname "$PAPER_GLOBAL_CONFIG")"
+  if [ ! -f "$PAPER_GLOBAL_CONFIG" ]; then
+    printf "spark:\n  enable-immediately: false\n  enabled: false\n" | sudo tee "$PAPER_GLOBAL_CONFIG" >/dev/null
+  elif sudo grep -q '^spark:' "$PAPER_GLOBAL_CONFIG"; then
+    sudo sed -i '/^spark:/,/^[^[:space:]]/ s/^  enable-immediately: .*/  enable-immediately: false/' "$PAPER_GLOBAL_CONFIG"
+    sudo sed -i '/^spark:/,/^[^[:space:]]/ s/^  enabled: .*/  enabled: false/' "$PAPER_GLOBAL_CONFIG"
+  else
+    printf "\nspark:\n  enable-immediately: false\n  enabled: false\n" | sudo tee -a "$PAPER_GLOBAL_CONFIG" >/dev/null
+  fi
+  sudo chown ubuntu:ubuntu "$PAPER_GLOBAL_CONFIG"
+  sudo chmod 664 "$PAPER_GLOBAL_CONFIG"
 
   cd "$INFRA_DIR/apps/minecraft"
   docker compose up -d
