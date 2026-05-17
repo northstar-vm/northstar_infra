@@ -505,6 +505,13 @@
         }
       };
 
+      const replaceHistory = (name, values) => {
+        history[name] = values
+          .slice(-HISTORY_LIMIT)
+          .map((value) => Math.max(0, Math.min(100, Number(value || 0))));
+        renderSparkline(name);
+      };
+
       const renderSparkline = (name) => {
         const values = history[name];
         const line = document.getElementById(`${name}-line`);
@@ -631,7 +638,7 @@
         const containers = docker.containers || [];
         count.textContent = `${containers.length}`;
         note.textContent =
-          `${historySummary.container_samples || 0} container samples stored, ${historySummary.retention_days || 30} day retention`;
+          `${historySummary.container_samples || 0} container samples stored, ${historySummary.retention_days || 10} day retention`;
 
         if (!containers.length) {
           const row = document.createElement("tr");
@@ -766,7 +773,24 @@
         }
       };
 
-      loadStatus();
+      const loadPersistedHistory = async () => {
+        try {
+          const response = await fetch("/status/history?limit=40", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`history ${response.status}`);
+          }
+          const data = await response.json();
+          const vm = data.vm || [];
+          if (vm.length) {
+            replaceHistory("cpu", vm.map((sample) => sample.cpu_percent));
+            replaceHistory("memory", vm.map((sample) => sample.memory_percent));
+          }
+        } catch (error) {
+          return;
+        }
+      };
+
+      loadPersistedHistory().then(loadStatus);
       setInterval(loadStatus, 30000);
     </script>
   </body>

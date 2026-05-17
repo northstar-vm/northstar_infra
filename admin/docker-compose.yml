@@ -19,7 +19,7 @@ services:
     environment:
       DOCKER_ALLOWED_CONTAINERS: "northstar-caddy,northstar-cv-web,northstar-filebrowser,northstar-minecraft,northstar-status,quizzy-backend-1,quizzy-frontend-1,quizzy-web-1"
       DOCKER_PROTECTED_CONTAINERS: "northstar-caddy,northstar-filebrowser,northstar-status"
-      METRICS_RETENTION_DAYS: "30"
+      METRICS_RETENTION_DAYS: "10"
       METRICS_SAMPLE_SECONDS: "60"
     command: python /app/status_server.py
     volumes:

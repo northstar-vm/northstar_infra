@@ -456,7 +456,7 @@ Status service design:
 
 - Mounts `/` and `/proc` read-only for VM stats.
 - Mounts `/var/run/docker.sock` for Docker stats and allowlisted start/stop/restart/pause actions.
-- Stores SQLite history in `/opt/northstar/admin/status-data/northstar.db`.
+- Stores 10 days of SQLite history in `/opt/northstar/admin/status-data/northstar.db`.
 - Mounts `/opt/northstar/apps/minecraft/data/logs` read-only for `latest.log`.
 - Queries Minecraft through the normal server-list ping on `northstar-minecraft:25565`.
 - Exposes only container port `8080` on the Docker network.
