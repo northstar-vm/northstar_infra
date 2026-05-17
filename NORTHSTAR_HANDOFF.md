@@ -467,37 +467,35 @@ docker compose exec status python -c "import json, urllib.request; print(json.du
 
 ## File Browser
 
-File Browser is intentionally configured to expose the whole VM filesystem:
+File Browser is configured for one safe upload/download folder:
 
 ```text
-Host / -> Container /srv
+Host /opt/northstar/admin/files -> Container /srv
 ```
 
-So `/opt/northstar` appears as:
+Inside File Browser, `/opt/northstar/admin/files` appears as:
 
 ```text
-/srv/opt/northstar
+/
 ```
 
-Danger zones in File Browser:
+File Browser uses `--noauth` and relies on the northstar Caddy Basic Auth gateway instead of its own login screen. If drag-and-drop uploads fail, fix the host folder permissions:
 
-```text
-/srv/etc
-/srv/usr
-/srv/boot
-/srv/var/lib/docker
-Docker volume internals
+```bash
+sudo mkdir -p /opt/northstar/admin/files
+sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files
+sudo chmod 775 /opt/northstar/admin/files
 ```
 
-Good places for user-managed files:
+After changing from the old whole-VM mount, reset the File Browser database volume once:
 
-```text
-/srv/opt/northstar/admin/files
-/srv/opt/northstar/backups
-/srv/home/ubuntu
+```bash
+cd /opt/northstar/infra/admin
+docker compose stop filebrowser
+docker compose rm -f filebrowser
+docker volume rm admin_filebrowser_database
+docker compose up -d filebrowser
 ```
-
-For SSH keys and permissions, prefer terminal over File Browser.
 
 ## Portainer
 
@@ -513,7 +511,15 @@ It runs with access to:
 /var/run/docker.sock
 ```
 
-That means Portainer effectively controls Docker on the VM. Keep it behind Caddy Basic Auth and its own Portainer login.
+That means Portainer effectively controls Docker on the VM. Keep it behind Caddy Basic Auth and its own Portainer login. To reset Portainer and recreate the first admin as `vallutto`, remove only its UI data volume:
+
+```bash
+cd /opt/northstar/infra/admin
+docker compose stop portainer
+docker compose rm -f portainer
+docker volume rm admin_portainer_data
+docker compose up -d portainer
+```
 
 ## SSH Keys / Secrets
 
@@ -912,4 +918,4 @@ Expected:
 - Do not expose Docker socket publicly.
 - Do not remove `0.0.0.0/0` from Atlas until VM-specific Atlas access is verified, but remove it once verified.
 - Do not delete `/opt/northstar/proxy`; archive it first.
-- Do not use File Browser for SSH key management if permissions are confusing; use terminal.
+- Do not broaden File Browser back to the whole VM unless you intentionally accept the extra risk.

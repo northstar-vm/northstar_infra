@@ -74,33 +74,25 @@ CI/CD target:
 - `https://northstar.attentionisallineed.xyz/files/` - File Browser
 - `https://northstar.attentionisallineed.xyz/status/api` - private VM memory/disk status API used by the admin portal
 
-The admin domain is protected with Caddy Basic Auth. Portainer and File Browser keep their own application logins as a second layer.
+The admin domain is protected with Caddy Basic Auth. Use `vallutto` as the admin username on the VM-only Caddyfile. Portainer keeps its own application login as a second layer; File Browser relies on the Caddy login only.
 
 The portal home page shows CPU/RAM bars with browser-side rolling sparklines, a root disk bar, and a read-only Minecraft panel with player count, sampled player names, player history from `latest.log`, and a large scrollable raw log viewer. The status API is served by an internal Docker container and is not published directly to the internet.
 
 ## File Browser Scope
 
-File Browser is configured to expose the VM filesystem at:
+File Browser is configured to expose one upload/download folder:
+
+```text
+/opt/northstar/admin/files
+```
+
+Inside File Browser this appears as the root folder:
 
 ```text
 /
 ```
 
-Inside File Browser this appears under `/srv`, so the main server folder is:
-
-```text
-/srv/opt/northstar
-```
-
-This gives browser-based write access to the server filesystem. Keep the northstar domain protected with Caddy Basic Auth, keep File Browser's own login enabled, and avoid editing system paths such as `/srv/etc`, `/srv/usr`, `/srv/boot`, `/srv/var/lib/docker`, and Docker volume internals unless you intentionally need to.
-
-Good places for manual files:
-
-```text
-/srv/opt/northstar/admin/files
-/srv/opt/northstar/backups
-/srv/home/ubuntu
-```
+This keeps browser-based file management away from system directories and should avoid drag-and-drop failures caused by uploading into root-owned paths. Keep File Browser reachable only through the Caddy-protected northstar domain.
 
 ## Minecraft Java Server
 

@@ -25,7 +25,7 @@ cv.attentionisallineed.xyz {
 
 northstar.attentionisallineed.xyz {
 	basic_auth {
-		ADMIN_USERNAME ADMIN_PASSWORD_HASH_FROM_CADDY
+		vallutto ADMIN_PASSWORD_HASH_FROM_CADDY
 	}
 
 	encode zstd gzip

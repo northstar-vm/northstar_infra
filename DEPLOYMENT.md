@@ -15,6 +15,7 @@ sudo mkdir -p /opt/northstar/backups
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin
 sudo chown -R ubuntu:ubuntu /opt/northstar/apps/minecraft
 sudo chown -R ubuntu:ubuntu /opt/northstar/backups
+sudo chmod 775 /opt/northstar/admin/files
 ```
 
 This repo is cloned to `/opt/northstar/infra`. App source repositories live separately in `/opt/northstar/apps`.
@@ -242,9 +243,9 @@ cd /opt/northstar/infra/admin
 docker compose up -d
 ```
 
-Portainer will initialize on first visit and ask you to create its admin user.
+Portainer will initialize on first visit and ask you to create its admin user. Use `vallutto` as the username.
 
-File Browser will create its database on first run. Change its default credentials immediately inside the File Browser UI.
+File Browser is configured with no internal login and relies on Caddy Basic Auth for the northstar admin domain. Use `vallutto` for the Caddy Basic Auth username in the real VM Caddyfile.
 
 The admin status service reads host CPU, RAM, and root disk usage read-only, queries Minecraft's normal server-list status, and reads Minecraft logs from a read-only mount. The portal renders CPU/RAM bars with browser-side rolling sparklines, a disk bar, and a read-only Minecraft panel with player history plus a large scrollable raw log viewer. It is only reachable through the Caddy-protected northstar domain.
 
@@ -258,31 +259,44 @@ docker compose logs --tail=40 status
 
 The Minecraft panel is intentionally read-only. Use SSH/RCON for commands instead of exposing command execution in the browser.
 
-File Browser mounts the VM root filesystem at `/srv` in the browser. This is intentionally powerful: use it for operational edits and file management, but avoid changing system directories unless you know why.
-
-Useful browser paths:
+File Browser mounts only the safe admin files folder. The host path is:
 
 ```text
-/srv/opt/northstar
-/srv/opt/northstar/admin/files
-/srv/opt/northstar/backups
-/srv/home/ubuntu
+/opt/northstar/admin/files
 ```
 
-If File Browser rejects credentials, read the generated password from logs:
+Inside File Browser, that folder appears as:
 
-```bash
-docker compose logs filebrowser | grep -i password
+```text
+/
 ```
 
-If needed, reset the File Browser database volume and recreate the service:
+If drag-and-drop uploads fail, first fix the folder ownership and permissions on the VM:
 
 ```bash
-docker rm -f northstar-filebrowser
-docker volume ls | grep filebrowser
-docker volume rm THE_FILEBROWSER_VOLUME_NAME
+sudo mkdir -p /opt/northstar/admin/files
+sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files
+sudo chmod 775 /opt/northstar/admin/files
+```
+
+After switching from the old whole-VM File Browser setup, reset the File Browser database volume once and recreate the service:
+
+```bash
+cd /opt/northstar/infra/admin
+docker compose stop filebrowser
+docker compose rm -f filebrowser
+docker volume rm admin_filebrowser_database
 docker compose up -d filebrowser
-docker compose logs filebrowser | grep -i password
+```
+
+To reset Portainer so the first admin user can be recreated as `vallutto`, remove only Portainer's UI data volume. This does not delete the actual Docker containers:
+
+```bash
+cd /opt/northstar/infra/admin
+docker compose stop portainer
+docker compose rm -f portainer
+docker volume rm admin_portainer_data
+docker compose up -d portainer
 ```
 
 ## 6. Configure Caddy
@@ -300,11 +314,10 @@ Important: merge the admin host into the existing proxy config. Do not delete or
 Replace:
 
 ```text
-ADMIN_USERNAME
 ADMIN_PASSWORD_HASH_FROM_CADDY
 ```
 
-with the real username and generated hash on the VM only.
+with the generated hash on the VM only. The admin username should be `vallutto`.
 
 The CV route should point to the CV Nginx service:
 
@@ -439,7 +452,7 @@ Expected security layers:
 
 - Northstar domain asks for Caddy Basic Auth first.
 - Portainer asks for its own login at `/docker/`.
-- File Browser asks for its own login at `/files/`.
+- File Browser opens at `/files/` after Caddy authentication and does not ask for a second login.
 - Minecraft requires a licensed Java Edition account because `ONLINE_MODE=TRUE`.
 
 ## 12. CI/CD Setup
