@@ -30,12 +30,6 @@ northstar.attentionisallineed.xyz {
 
 	encode zstd gzip
 
-	handle_path /docker/* {
-		reverse_proxy portainer:9000
-	}
-
-	redir /docker /docker/
-
 	handle /files/* {
 		reverse_proxy filebrowser:80 {
 			header_up -Authorization

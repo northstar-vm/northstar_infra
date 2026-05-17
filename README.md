@@ -70,13 +70,14 @@ CI/CD target:
 ## What This Adds
 
 - `https://northstar.attentionisallineed.xyz/` - static admin portal page
-- `https://northstar.attentionisallineed.xyz/docker/` - Portainer CE
 - `https://northstar.attentionisallineed.xyz/files/` - File Browser
-- `https://northstar.attentionisallineed.xyz/status/api` - private VM memory/disk status API used by the admin portal
+- `https://northstar.attentionisallineed.xyz/status/api` - private VM, Docker, Minecraft, and history API used by the admin portal
 
-The admin domain is protected with Caddy Basic Auth. Use `vallutto` as the admin username on the VM-only Caddyfile. Portainer keeps its own application login as a second layer; File Browser relies on the Caddy login only.
+The admin domain is protected with Caddy Basic Auth. Use `vallutto` as the admin username on the VM-only Caddyfile. File Browser relies on the Caddy login only.
 
-The portal home page shows CPU/RAM bars with browser-side rolling sparklines, a root disk bar, and a read-only Minecraft panel with player count, sampled player names, player history from `latest.log`, and a large scrollable raw log viewer. The status API is served by an internal Docker container and is not published directly to the internet.
+The portal home page shows VM CPU/RAM/disk, Docker container CPU/RAM/disk stats with safe start/stop/restart/pause controls, and Minecraft player/log history. The status API stores 30 days of samples in SQLite under `/opt/northstar/admin/status-data` and is not published directly to the internet.
+
+Portainer has been removed. Use the built-in Docker panel for common actions, and SSH for anything dangerous or unusual.
 
 ## File Browser Scope
 
@@ -170,7 +171,7 @@ Minecraft uses raw TCP on port `25565`, not HTTP/HTTPS, so it does not go throug
 
 ## Secrets
 
-Do not commit real passwords, Caddy hashes, Portainer data, File Browser databases, or runtime volumes.
+Do not commit real passwords, Caddy hashes, File Browser databases, status SQLite databases, or runtime volumes.
 
 Also do not commit API keys, private SSH keys, MongoDB connection strings, Google OAuth secrets, or real VM-only config.
 

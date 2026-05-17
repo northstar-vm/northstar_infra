@@ -12,9 +12,10 @@ NORTHSTAR_FILE_UID="$(id -u ubuntu)"
 NORTHSTAR_FILE_GID="$(id -g ubuntu)"
 export NORTHSTAR_FILE_UID NORTHSTAR_FILE_GID
 
-sudo mkdir -p /opt/northstar/admin/files /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config /opt/northstar/backups /opt/northstar/apps
+sudo mkdir -p /opt/northstar/admin/files /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config /opt/northstar/admin/status-data /opt/northstar/backups /opt/northstar/apps
 sudo chown -R "$NORTHSTAR_FILE_UID:$NORTHSTAR_FILE_GID" /opt/northstar/admin/files /opt/northstar/admin/filebrowser
 sudo chown -R ubuntu:ubuntu /opt/northstar/backups /opt/northstar/apps
+sudo chown -R root:root /opt/northstar/admin/status-data
 sudo chmod 775 /opt/northstar/admin/files
 sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files
 

@@ -190,7 +190,7 @@ northstar-caddy         caddy:2
 northstar-cv-web        nginx:1.27-alpine
 northstar-filebrowser   filebrowser/filebrowser:latest
 northstar-minecraft     itzg/minecraft-server:java25
-northstar-portainer     portainer/portainer-ce:latest
+northstar-status        python:3.13-alpine
 quizzy-backend-1        quizzy-backend
 quizzy-frontend-1       quizzy-frontend
 quizzy-web-1            nginx:1.27-alpine
@@ -430,9 +430,8 @@ Routes:
 
 ```text
 /          static admin portal
-/docker/   Portainer CE
 /files/    File Browser
-/status/api private JSON status for portal CPU/RAM/disk bars and read-only Minecraft panel
+/status/api private JSON status for portal CPU/RAM/disk bars, Docker controls, and Minecraft panel
 ```
 
 Admin compose:
@@ -441,20 +440,21 @@ Admin compose:
 cd /opt/northstar/infra/admin
 docker compose ps
 docker compose logs --tail=80 filebrowser
-docker compose logs --tail=80 portainer
 docker compose logs --tail=40 status
 ```
 
-The portal homepage shows CPU/RAM usage bars with browser-side rolling sparklines, a root disk usage bar, and a read-only Minecraft panel with player count, sampled player names, player history from `latest.log`, and a large scrollable raw log viewer. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
+The portal homepage shows VM CPU/RAM/disk usage, Docker container stats and safe actions, and a Minecraft panel with player count, persisted player history, and raw logs. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
 
 Status service design:
 
 - Mounts `/` and `/proc` read-only for VM stats.
+- Mounts `/var/run/docker.sock` for Docker stats and allowlisted start/stop/restart/pause actions.
+- Stores SQLite history in `/opt/northstar/admin/status-data/northstar.db`.
 - Mounts `/opt/northstar/apps/minecraft/data/logs` read-only for `latest.log`.
 - Queries Minecraft through the normal server-list ping on `northstar-minecraft:25565`.
 - Exposes only container port `8080` on the Docker network.
 - Caddy proxies `/status/*` behind the existing northstar Basic Auth.
-- It is intentionally read-only; use SSH/RCON for actual server commands.
+- Caddy, File Browser, and status are protected from browser Docker actions.
 
 Manual status checks on the VM:
 
@@ -506,28 +506,14 @@ sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files /opt/northstar/admin/file
 docker compose up -d filebrowser
 ```
 
-## Portainer
+## Old Portainer Cleanup
 
-Portainer is Docker UI at:
-
-```text
-https://northstar.attentionisallineed.xyz/docker/
-```
-
-It runs with access to:
-
-```text
-/var/run/docker.sock
-```
-
-That means Portainer effectively controls Docker on the VM. Keep it behind Caddy Basic Auth and its own Portainer login. To reset Portainer and recreate the first admin as `vallutto`, remove only its UI data volume:
+Portainer has been removed in favor of the built-in portal Docker panel. If the old container or volume still exists, remove only Portainer's UI data:
 
 ```bash
 cd /opt/northstar/infra/admin
-docker compose stop portainer
-docker compose rm -f portainer
+docker rm -f northstar-portainer
 docker volume rm admin_portainer_data
-docker compose up -d portainer
 ```
 
 ## SSH Keys / Secrets

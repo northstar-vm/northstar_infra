@@ -12,9 +12,11 @@ sudo mkdir -p /opt/northstar/admin/portal
 sudo mkdir -p /opt/northstar/admin/files
 sudo mkdir -p /opt/northstar/admin/filebrowser/database
 sudo mkdir -p /opt/northstar/admin/filebrowser/config
+sudo mkdir -p /opt/northstar/admin/status-data
 sudo mkdir -p /opt/northstar/apps/minecraft/data
 sudo mkdir -p /opt/northstar/backups
 sudo chown -R ubuntu:ubuntu /opt/northstar/admin
+sudo chown -R root:root /opt/northstar/admin/status-data
 sudo chown -R ubuntu:ubuntu /opt/northstar/apps/minecraft
 sudo chown -R ubuntu:ubuntu /opt/northstar/backups
 sudo chmod 775 /opt/northstar/admin/files
@@ -245,11 +247,9 @@ cd /opt/northstar/infra/admin
 docker compose up -d
 ```
 
-Portainer will initialize on first visit and ask you to create its admin user. Use `vallutto` as the username.
-
 File Browser is configured with no internal login and relies on Caddy Basic Auth for the northstar admin domain. Use `vallutto` for the Caddy Basic Auth username in the real VM Caddyfile.
 
-The admin status service reads host CPU, RAM, and root disk usage read-only, queries Minecraft's normal server-list status, and reads Minecraft logs from a read-only mount. The portal renders CPU/RAM bars with browser-side rolling sparklines, a disk bar, and a read-only Minecraft panel with player history plus a large scrollable raw log viewer. It is only reachable through the Caddy-protected northstar domain.
+The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, and Minecraft logs. It stores 30 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers; Caddy, File Browser, and the status service are protected from browser actions so you do not lock yourself out.
 
 Check the status service:
 
@@ -294,14 +294,12 @@ sudo chown -R ubuntu:ubuntu /opt/northstar/admin/files /opt/northstar/admin/file
 docker compose up -d filebrowser
 ```
 
-To reset Portainer so the first admin user can be recreated as `vallutto`, remove only Portainer's UI data volume. This does not delete the actual Docker containers:
+If this VM still has the old Portainer container or volume, remove them after confirming the new Docker panel works:
 
 ```bash
 cd /opt/northstar/infra/admin
-docker compose stop portainer
-docker compose rm -f portainer
+docker rm -f northstar-portainer
 docker volume rm admin_portainer_data
-docker compose up -d portainer
 ```
 
 ## 6. Configure Caddy
@@ -344,12 +342,6 @@ cv.attentionisallineed.xyz {
 The northstar admin host should include these internal admin routes:
 
 ```caddy
-handle_path /docker/* {
-	reverse_proxy portainer:9000
-}
-
-redir /docker /docker/
-
 handle /files/* {
 	reverse_proxy filebrowser:80 {
 		header_up -Authorization
@@ -416,6 +408,8 @@ Keep the existing Quizzy record working.
 
 Keep `mc` DNS-only because Minecraft uses raw TCP on `25565`, not HTTPS through Caddy.
 
+For two-factor protection on the admin portal, use Cloudflare Access in front of `northstar.attentionisallineed.xyz` with an allow policy for your email and one-time PIN login. Caddy Basic Auth stays as the VM-side fallback; Cloudflare Access adds the second factor before traffic reaches Caddy.
+
 ## 9. Atlas and OAuth Checks
 
 MongoDB Atlas:
@@ -451,15 +445,15 @@ Open:
 - `https://quizzy.attentionisallineed.xyz`
 - `https://cv.attentionisallineed.xyz`
 - `https://northstar.attentionisallineed.xyz`
-- `https://northstar.attentionisallineed.xyz/docker/`
 - `https://northstar.attentionisallineed.xyz/files/`
 - `mc.attentionisallineed.xyz` from Minecraft Java Edition
 
 Expected security layers:
 
 - Northstar domain asks for Caddy Basic Auth first.
-- Portainer asks for its own login at `/docker/`.
+- Optional Cloudflare Access asks for email OTP before Caddy if configured.
 - File Browser opens at `/files/` after Caddy authentication and does not ask for a second login.
+- The portal Docker panel shows allowlisted container stats and common controls.
 - Minecraft requires a licensed Java Edition account because `ONLINE_MODE=TRUE`.
 
 ## 12. CI/CD Setup

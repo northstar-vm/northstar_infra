@@ -4,11 +4,19 @@ import json
 import os
 import re
 import socket
+import sqlite3
 import struct
+import threading
 import time
+from urllib.parse import parse_qs, quote, urlparse
 
 
 HOST_ROOT = "/host"
+DATA_DIR = "/data"
+DB_PATH = os.environ.get("NORTHSTAR_DB_PATH", os.path.join(DATA_DIR, "northstar.db"))
+DOCKER_SOCKET = os.environ.get("DOCKER_SOCKET", "/var/run/docker.sock")
+METRICS_RETENTION_DAYS = int(os.environ.get("METRICS_RETENTION_DAYS", "30"))
+METRICS_SAMPLE_SECONDS = int(os.environ.get("METRICS_SAMPLE_SECONDS", "60"))
 MEMINFO_PATH = "/host/proc/meminfo"
 MINECRAFT_HOST = os.environ.get("MINECRAFT_HOST", "northstar-minecraft")
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
@@ -16,10 +24,97 @@ MINECRAFT_LOG_PATH = "/minecraft-logs/latest.log"
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
 PLAYER_LOGIN_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
+PLAYER_LOGOUT_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) left the game$")
+ALLOWED_CONTAINERS = {
+    name.strip()
+    for name in os.environ.get("DOCKER_ALLOWED_CONTAINERS", "").split(",")
+    if name.strip()
+}
+PROTECTED_CONTAINERS = {
+    name.strip()
+    for name in os.environ.get("DOCKER_PROTECTED_CONTAINERS", "").split(",")
+    if name.strip()
+}
+DOCKER_ACTIONS = {"start", "stop", "restart", "pause", "unpause"}
 
 
 def bytes_to_gib(value):
     return round(value / (1024 ** 3), 1)
+
+
+def bytes_to_mib(value):
+    return round(value / (1024 ** 2), 1)
+
+
+def now_ts():
+    return int(time.time())
+
+
+def open_db():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    connection = sqlite3.connect(DB_PATH, timeout=8)
+    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA busy_timeout=8000")
+    return connection
+
+
+def init_db():
+    with open_db() as db:
+        db.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS vm_samples (
+              ts INTEGER PRIMARY KEY,
+              cpu_percent REAL NOT NULL,
+              memory_percent REAL NOT NULL,
+              memory_used_gib REAL NOT NULL,
+              disk_percent REAL NOT NULL,
+              disk_used_gib REAL NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS container_samples (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              ts INTEGER NOT NULL,
+              container_id TEXT NOT NULL,
+              name TEXT NOT NULL,
+              state TEXT NOT NULL,
+              cpu_percent REAL NOT NULL,
+              memory_used_mib REAL NOT NULL,
+              memory_limit_mib REAL NOT NULL,
+              memory_percent REAL NOT NULL,
+              disk_rw_mib REAL NOT NULL,
+              disk_rootfs_mib REAL NOT NULL,
+              pids INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_container_samples_ts ON container_samples(ts);
+            CREATE INDEX IF NOT EXISTS idx_container_samples_name_ts ON container_samples(name, ts);
+
+            CREATE TABLE IF NOT EXISTS minecraft_samples (
+              ts INTEGER PRIMARY KEY,
+              reachable INTEGER NOT NULL,
+              online INTEGER NOT NULL,
+              max_players INTEGER NOT NULL,
+              version TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS player_events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              observed_ts INTEGER NOT NULL,
+              log_time TEXT NOT NULL,
+              player TEXT NOT NULL,
+              action TEXT NOT NULL,
+              raw_line TEXT NOT NULL UNIQUE
+            );
+            CREATE INDEX IF NOT EXISTS idx_player_events_player ON player_events(player, observed_ts);
+            """
+        )
+
+
+def prune_history():
+    cutoff = now_ts() - METRICS_RETENTION_DAYS * 86400
+    with open_db() as db:
+        db.execute("DELETE FROM vm_samples WHERE ts < ?", (cutoff,))
+        db.execute("DELETE FROM container_samples WHERE ts < ?", (cutoff,))
+        db.execute("DELETE FROM minecraft_samples WHERE ts < ?", (cutoff,))
 
 
 def read_memory():
@@ -102,6 +197,200 @@ def read_disk():
         "available_gib": bytes_to_gib(available),
         "used_percent": round((used / total) * 100, 1) if total else 0,
     }
+
+
+def decode_chunked(body):
+    output = bytearray()
+    index = 0
+    while True:
+        marker = body.find(b"\r\n", index)
+        if marker == -1:
+            return bytes(output)
+        size = int(body[index:marker].split(b";", 1)[0], 16)
+        index = marker + 2
+        if size == 0:
+            return bytes(output)
+        output.extend(body[index : index + size])
+        index += size + 2
+
+
+class DockerClient:
+    def request(self, method, path, payload=None):
+        if not os.path.exists(DOCKER_SOCKET):
+            raise RuntimeError("Docker socket is not available")
+
+        body = b""
+        if payload is not None:
+            body = json.dumps(payload).encode("utf-8")
+
+        request = (
+            f"{method} {path} HTTP/1.1\r\n"
+            "Host: docker\r\n"
+            "User-Agent: northstar-status\r\n"
+            "Connection: close\r\n"
+            f"Content-Length: {len(body)}\r\n"
+        )
+        if body:
+            request += "Content-Type: application/json\r\n"
+        request = request.encode("utf-8") + b"\r\n" + body
+
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(6)
+            sock.connect(DOCKER_SOCKET)
+            sock.sendall(request)
+            chunks = []
+            while True:
+                chunk = sock.recv(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+
+        response = b"".join(chunks)
+        header_end = response.find(b"\r\n\r\n")
+        if header_end == -1:
+            raise RuntimeError("invalid Docker API response")
+
+        header_blob = response[:header_end].decode("iso-8859-1")
+        raw_body = response[header_end + 4 :]
+        header_lines = header_blob.split("\r\n")
+        status_code = int(header_lines[0].split()[1])
+        headers = {}
+        for line in header_lines[1:]:
+            if ":" in line:
+                key, value = line.split(":", 1)
+                headers[key.lower()] = value.strip().lower()
+
+        if headers.get("transfer-encoding") == "chunked":
+            raw_body = decode_chunked(raw_body)
+
+        if status_code >= 400:
+            detail = raw_body.decode("utf-8", errors="replace")
+            raise RuntimeError(f"Docker API {status_code}: {detail}")
+
+        if not raw_body:
+            return None
+        return json.loads(raw_body.decode("utf-8"))
+
+    def get(self, path):
+        return self.request("GET", path)
+
+    def post(self, path):
+        return self.request("POST", path, {})
+
+
+docker_client = DockerClient()
+
+
+def container_name(container):
+    names = container.get("Names") or []
+    if names:
+        return names[0].lstrip("/")
+    return container.get("Id", "")[:12]
+
+
+def is_allowed_container(name):
+    return not ALLOWED_CONTAINERS or name in ALLOWED_CONTAINERS
+
+
+def calculate_cpu_percent(stats):
+    cpu_stats = stats.get("cpu_stats", {})
+    previous = stats.get("precpu_stats", {})
+    cpu_usage = cpu_stats.get("cpu_usage", {})
+    previous_usage = previous.get("cpu_usage", {})
+    cpu_delta = cpu_usage.get("total_usage", 0) - previous_usage.get("total_usage", 0)
+    system_delta = cpu_stats.get("system_cpu_usage", 0) - previous.get("system_cpu_usage", 0)
+    online_cpus = cpu_stats.get("online_cpus") or len(cpu_usage.get("percpu_usage") or []) or 1
+
+    if cpu_delta > 0 and system_delta > 0:
+        return round((cpu_delta / system_delta) * online_cpus * 100, 1)
+    return 0
+
+
+def calculate_memory(stats):
+    memory = stats.get("memory_stats", {})
+    raw_usage = memory.get("usage", 0)
+    stats_values = memory.get("stats", {})
+    cache = stats_values.get("total_inactive_file", stats_values.get("inactive_file", 0))
+    usage = max(raw_usage - cache, 0)
+    limit = memory.get("limit", 0)
+    percent = round((usage / limit) * 100, 1) if limit else 0
+    return usage, limit, percent
+
+
+def read_container_stats():
+    try:
+        containers = docker_client.get("/containers/json?all=1&size=1") or []
+    except Exception as error:
+        return {"available": False, "error": str(error), "containers": []}
+
+    result = []
+    for container in containers:
+        name = container_name(container)
+        if not is_allowed_container(name):
+            continue
+
+        container_id = container.get("Id", "")
+        state = container.get("State", "unknown")
+        stats_payload = {}
+        if state == "running":
+            try:
+                stats_payload = docker_client.get(f"/containers/{quote(container_id)}/stats?stream=false") or {}
+            except Exception:
+                stats_payload = {}
+
+        memory_used, memory_limit, memory_percent = calculate_memory(stats_payload)
+        networks = stats_payload.get("networks", {})
+        rx_bytes = sum(item.get("rx_bytes", 0) for item in networks.values())
+        tx_bytes = sum(item.get("tx_bytes", 0) for item in networks.values())
+        pids = stats_payload.get("pids_stats", {}).get("current", 0)
+
+        result.append(
+            {
+                "id": container_id[:12],
+                "full_id": container_id,
+                "name": name,
+                "image": container.get("Image", ""),
+                "state": state,
+                "status": container.get("Status", ""),
+                "protected": name in PROTECTED_CONTAINERS,
+                "actions": [] if name in PROTECTED_CONTAINERS else sorted(DOCKER_ACTIONS),
+                "cpu_percent": calculate_cpu_percent(stats_payload),
+                "memory_used_mib": bytes_to_mib(memory_used),
+                "memory_limit_mib": bytes_to_mib(memory_limit),
+                "memory_percent": memory_percent,
+                "disk_rw_mib": bytes_to_mib(container.get("SizeRw") or 0),
+                "disk_rootfs_mib": bytes_to_mib(container.get("SizeRootFs") or 0),
+                "network_rx_mib": bytes_to_mib(rx_bytes),
+                "network_tx_mib": bytes_to_mib(tx_bytes),
+                "pids": pids,
+            }
+        )
+
+    result.sort(key=lambda item: item["name"])
+    return {"available": True, "containers": result}
+
+
+def perform_container_action(name, action):
+    if action not in DOCKER_ACTIONS:
+        raise PermissionError("unsupported action")
+    if name in PROTECTED_CONTAINERS:
+        raise PermissionError("container is protected")
+    if not is_allowed_container(name):
+        raise PermissionError("container is not allowlisted")
+
+    containers = docker_client.get("/containers/json?all=1") or []
+    match = None
+    for container in containers:
+        if container_name(container) == name:
+            match = container
+            break
+
+    if not match:
+        raise FileNotFoundError("container not found")
+
+    suffix = "?t=10" if action in {"stop", "restart"} else ""
+    docker_client.post(f"/containers/{quote(match['Id'])}/{action}{suffix}")
+    return {"ok": True, "container": name, "action": action}
 
 
 def encode_varint(value):
@@ -231,9 +520,184 @@ def read_player_history():
     return sorted(players.values(), key=lambda player: player["last_login"], reverse=True)
 
 
+def read_player_events():
+    events = []
+    for line in read_full_minecraft_log():
+        login = PLAYER_LOGIN_PATTERN.match(line)
+        logout = PLAYER_LOGOUT_PATTERN.match(line)
+        match = login or logout
+        if not match:
+            continue
+        events.append(
+            {
+                "log_time": match.group("time"),
+                "player": match.group("name"),
+                "action": "joined" if login else "left",
+                "raw_line": line,
+            }
+        )
+    return events
+
+
+def store_player_events():
+    observed = now_ts()
+    events = read_player_events()
+    if not events:
+        return
+    with open_db() as db:
+        db.executemany(
+            """
+            INSERT OR IGNORE INTO player_events (observed_ts, log_time, player, action, raw_line)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [(observed, event["log_time"], event["player"], event["action"], event["raw_line"]) for event in events],
+        )
+
+
+def read_persisted_player_history():
+    with open_db() as db:
+        rows = db.execute(
+            """
+            SELECT
+              player,
+              MIN(log_time) AS first_login,
+              MAX(log_time) AS last_seen,
+              SUM(CASE WHEN action = 'joined' THEN 1 ELSE 0 END) AS joins,
+              SUM(CASE WHEN action = 'left' THEN 1 ELSE 0 END) AS leaves
+            FROM player_events
+            GROUP BY player
+            ORDER BY MAX(observed_ts) DESC, player ASC
+            LIMIT 80
+            """
+        ).fetchall()
+    return [
+        {
+            "name": row[0],
+            "first_login": row[1],
+            "last_login": row[2],
+            "joins": row[3],
+            "leaves": row[4],
+        }
+        for row in rows
+    ]
+
+
+def store_sample(cpu, memory, disk, minecraft, docker):
+    ts = now_ts()
+    status = minecraft.get("status", {})
+    containers = docker.get("containers", []) if docker.get("available") else []
+
+    with open_db() as db:
+        db.execute(
+            """
+            INSERT OR REPLACE INTO vm_samples
+            (ts, cpu_percent, memory_percent, memory_used_gib, disk_percent, disk_used_gib)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ts,
+                cpu.get("used_percent", 0),
+                memory.get("used_percent", 0),
+                memory.get("used_gib", 0),
+                disk.get("used_percent", 0),
+                disk.get("used_gib", 0),
+            ),
+        )
+        db.execute(
+            """
+            INSERT OR REPLACE INTO minecraft_samples
+            (ts, reachable, online, max_players, version)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                ts,
+                1 if status.get("reachable") else 0,
+                status.get("online", 0),
+                status.get("max", 0),
+                status.get("version", "unknown"),
+            ),
+        )
+        db.executemany(
+            """
+            INSERT INTO container_samples
+            (ts, container_id, name, state, cpu_percent, memory_used_mib, memory_limit_mib,
+             memory_percent, disk_rw_mib, disk_rootfs_mib, pids)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    ts,
+                    item["id"],
+                    item["name"],
+                    item["state"],
+                    item["cpu_percent"],
+                    item["memory_used_mib"],
+                    item["memory_limit_mib"],
+                    item["memory_percent"],
+                    item["disk_rw_mib"],
+                    item["disk_rootfs_mib"],
+                    item["pids"],
+                )
+                for item in containers
+            ],
+        )
+
+    store_player_events()
+
+
+def read_history_summary():
+    with open_db() as db:
+        vm_count = db.execute("SELECT COUNT(*) FROM vm_samples").fetchone()[0]
+        container_count = db.execute("SELECT COUNT(*) FROM container_samples").fetchone()[0]
+        player_count = db.execute("SELECT COUNT(DISTINCT player) FROM player_events").fetchone()[0]
+        last_sample = db.execute("SELECT MAX(ts) FROM vm_samples").fetchone()[0]
+    return {
+        "retention_days": METRICS_RETENTION_DAYS,
+        "vm_samples": vm_count,
+        "container_samples": container_count,
+        "players": player_count,
+        "last_sample_ts": last_sample,
+    }
+
+
+def build_status_payload(store=False):
+    cpu = read_cpu()
+    memory = read_memory()
+    disk = read_disk()
+    minecraft = {
+        "status": query_minecraft_status(),
+        "logs": read_full_minecraft_log(),
+        "players": read_persisted_player_history() or read_player_history(),
+    }
+    docker = read_container_stats()
+
+    if store:
+        store_sample(cpu, memory, disk, minecraft, docker)
+
+    return {
+        "cpu": cpu,
+        "memory": memory,
+        "disk": disk,
+        "docker": docker,
+        "minecraft": minecraft,
+        "history": read_history_summary(),
+    }
+
+
+def sampler_loop():
+    while True:
+        try:
+            build_status_payload(store=True)
+            prune_history()
+        except Exception:
+            pass
+        time.sleep(max(15, METRICS_SAMPLE_SECONDS))
+
+
 class StatusHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/minecraft/latest.log":
+        parsed = urlparse(self.path)
+        if parsed.path == "/minecraft/latest.log":
             body = read_minecraft_log_text().encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -243,24 +707,64 @@ class StatusHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path not in ("/api", "/health"):
+        if parsed.path == "/history":
+            query = parse_qs(parsed.query)
+            limit = min(int(query.get("limit", ["120"])[0]), 500)
+            with open_db() as db:
+                vm_rows = db.execute(
+                    "SELECT ts, cpu_percent, memory_percent, disk_percent FROM vm_samples ORDER BY ts DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            payload = {
+                "vm": [
+                    {
+                        "ts": row[0],
+                        "cpu_percent": row[1],
+                        "memory_percent": row[2],
+                        "disk_percent": row[3],
+                    }
+                    for row in reversed(vm_rows)
+                ]
+            }
+            self.send_json(payload)
+            return
+
+        if parsed.path not in ("/api", "/health"):
             self.send_error(404)
             return
 
-        if self.path == "/health":
+        if parsed.path == "/health":
             payload = {"ok": True}
         else:
-            payload = {
-                "cpu": read_cpu(),
-                "memory": read_memory(),
-                "disk": read_disk(),
-                "minecraft": {
-                    "status": query_minecraft_status(),
-                    "logs": read_full_minecraft_log(),
-                    "players": read_player_history(),
-                },
-            }
+            payload = build_status_payload(store=True)
 
+        self.send_json(payload)
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path != "/docker/action":
+            self.send_error(404)
+            return
+
+        if self.headers.get("X-Northstar-Action") != "1":
+            self.send_error(403)
+            return
+
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            name = str(payload.get("container", ""))
+            action = str(payload.get("action", ""))
+            result = perform_container_action(name, action)
+            self.send_json(result)
+        except PermissionError as error:
+            self.send_error(403, str(error))
+        except FileNotFoundError as error:
+            self.send_error(404, str(error))
+        except Exception as error:
+            self.send_error(500, str(error))
+
+    def send_json(self, payload):
         body = json.dumps(payload).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -274,5 +778,7 @@ class StatusHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    init_db()
+    threading.Thread(target=sampler_loop, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", 8080), StatusHandler)
     server.serve_forever()

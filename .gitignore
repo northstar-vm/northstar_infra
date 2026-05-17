@@ -24,13 +24,13 @@ northstar_actions.pub
 admin/data/
 admin/files/
 admin/filebrowser/
+admin/status-data/
 apps/minecraft/.env
 apps/minecraft/data/
 proxy/data/
 proxy/config/
 caddy_data/
 caddy_config/
-portainer_data/
 filebrowser.db
 
 # Logs

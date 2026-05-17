@@ -41,7 +41,7 @@
       }
 
       main {
-        width: min(920px, calc(100% - 32px));
+        width: min(1180px, calc(100% - 32px));
         margin: 0 auto;
         padding: 56px 0;
       }
@@ -280,6 +280,87 @@
         text-align: right;
       }
 
+      .table-wrap {
+        margin-top: 16px;
+        overflow-x: auto;
+      }
+
+      .docker-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.93rem;
+      }
+
+      .docker-table th,
+      .docker-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      .docker-table th {
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .docker-table td:nth-child(n+3),
+      .docker-table th:nth-child(n+3) {
+        text-align: right;
+      }
+
+      .docker-table td:last-child,
+      .docker-table th:last-child {
+        text-align: left;
+      }
+
+      .state {
+        display: inline-flex;
+        align-items: center;
+        min-width: 78px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--fg);
+        background: color-mix(in srgb, var(--panel) 86%, var(--accent) 14%);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-start;
+      }
+
+      button {
+        min-height: 30px;
+        padding: 5px 9px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel);
+        color: var(--fg);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button:hover,
+      button:focus-visible {
+        border-color: var(--accent);
+        outline: none;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      .docker-error {
+        color: var(--accent-2);
+      }
+
       @media (max-width: 680px) {
         .metrics-grid {
           grid-template-columns: 1fr;
@@ -295,16 +376,10 @@
     <main>
       <header>
         <h1>Northstar</h1>
-        <p>Private admin portal for the northstar VM. This page is protected by Caddy Basic Auth before any tool-specific login appears.</p>
+        <p>Private admin portal for the northstar VM. This page is protected by Caddy Basic Auth before the VM tools load.</p>
       </header>
 
       <nav aria-label="Admin tools">
-        <a href="/docker/">
-          <span class="label">Containers</span>
-          <span class="title">Portainer</span>
-          <span class="hint">Manage Docker services, volumes, networks, and container logs.</span>
-        </a>
-
         <a href="/files/">
           <span class="label">Files</span>
           <span class="title">File Browser</span>
@@ -355,6 +430,36 @@
               <div class="bar-fill" id="disk-bar"></div>
             </div>
             <div class="metric-note" id="disk-note">Loading disk...</div>
+          </div>
+        </div>
+
+        <div class="metric minecraft-panel">
+          <div class="minecraft-head">
+            <div>
+              <span class="metric-name">Docker</span>
+              <div class="metric-note" id="docker-note">Loading containers...</div>
+            </div>
+            <span class="metric-value" id="docker-count">--</span>
+          </div>
+          <div class="table-wrap">
+            <table class="docker-table">
+              <thead>
+                <tr>
+                  <th>Container</th>
+                  <th>State</th>
+                  <th>CPU</th>
+                  <th>RAM</th>
+                  <th>Disk</th>
+                  <th>PIDs</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="docker-containers">
+                <tr>
+                  <td colspan="7">Loading containers...</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -449,6 +554,144 @@
         renderSparkline("cpu");
       };
 
+      const formatMib = (value) => {
+        const number = Number(value || 0);
+        if (number >= 1024) {
+          return `${(number / 1024).toFixed(1)} GiB`;
+        }
+        return `${number.toFixed(1)} MiB`;
+      };
+
+      const actionLabel = {
+        start: "Start",
+        stop: "Stop",
+        restart: "Restart",
+        pause: "Pause",
+        unpause: "Unpause",
+      };
+
+      const visibleActions = (container) => {
+        if (container.protected) {
+          return [];
+        }
+        if (container.state === "running") {
+          return ["restart", "stop", "pause"];
+        }
+        if (container.state === "paused") {
+          return ["unpause", "stop"];
+        }
+        return ["start"];
+      };
+
+      const runDockerAction = async (container, action, button) => {
+        button.disabled = true;
+        button.textContent = "...";
+        try {
+          const response = await fetch("/status/docker/action", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Northstar-Action": "1",
+            },
+            body: JSON.stringify({ container, action }),
+          });
+          if (!response.ok) {
+            throw new Error(`status ${response.status}`);
+          }
+          await loadStatus();
+        } catch (error) {
+          document.getElementById("docker-note").textContent = `${action} failed for ${container}`;
+          document.getElementById("docker-note").classList.add("docker-error");
+        } finally {
+          button.disabled = false;
+          button.textContent = actionLabel[action] || action;
+        }
+      };
+
+      const setDocker = (docker, historySummary = {}) => {
+        const body = document.getElementById("docker-containers");
+        const note = document.getElementById("docker-note");
+        const count = document.getElementById("docker-count");
+        note.classList.remove("docker-error");
+        body.replaceChildren();
+
+        if (!docker.available) {
+          count.textContent = "--";
+          note.textContent = docker.error || "Docker stats unavailable";
+          note.classList.add("docker-error");
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 7;
+          cell.textContent = "Docker unavailable";
+          row.appendChild(cell);
+          body.appendChild(row);
+          return;
+        }
+
+        const containers = docker.containers || [];
+        count.textContent = `${containers.length}`;
+        note.textContent =
+          `${historySummary.container_samples || 0} container samples stored, ${historySummary.retention_days || 30} day retention`;
+
+        if (!containers.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 7;
+          cell.textContent = "No allowlisted containers found";
+          row.appendChild(cell);
+          body.appendChild(row);
+          return;
+        }
+
+        for (const container of containers) {
+          const row = document.createElement("tr");
+          const values = [
+            container.name,
+            container.state,
+            `${Number(container.cpu_percent || 0).toFixed(1)}%`,
+            `${formatMib(container.memory_used_mib)} / ${formatMib(container.memory_limit_mib)}`,
+            `${formatMib(container.disk_rw_mib)} rw`,
+            String(container.pids || 0),
+          ];
+
+          values.forEach((value, index) => {
+            const cell = document.createElement("td");
+            if (index === 1) {
+              const state = document.createElement("span");
+              state.className = "state";
+              state.textContent = value;
+              cell.appendChild(state);
+            } else {
+              cell.textContent = value;
+            }
+            row.appendChild(cell);
+          });
+
+          const actionCell = document.createElement("td");
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          if (container.protected) {
+            const locked = document.createElement("span");
+            locked.className = "hint";
+            locked.textContent = "Protected";
+            actions.appendChild(locked);
+          } else {
+            for (const action of visibleActions(container)) {
+              const button = document.createElement("button");
+              button.type = "button";
+              button.textContent = actionLabel[action] || action;
+              button.addEventListener("click", () => runDockerAction(container.name, action, button));
+              actions.appendChild(button);
+            }
+          }
+
+          actionCell.appendChild(actions);
+          row.appendChild(actionCell);
+          body.appendChild(row);
+        }
+      };
+
       const setMinecraft = (minecraft) => {
         const status = minecraft.status || {};
         const players = status.sample || [];
@@ -511,11 +754,13 @@
           setCpu(data.cpu || {});
           setMetric("memory", data.memory);
           setMetric("disk", data.disk);
+          setDocker(data.docker || {}, data.history || {});
           setMinecraft(data.minecraft || {});
         } catch (error) {
           document.getElementById("cpu-note").textContent = "Status unavailable";
           document.getElementById("memory-note").textContent = "Status unavailable";
           document.getElementById("disk-note").textContent = "Status unavailable";
+          document.getElementById("docker-note").textContent = "Status unavailable";
           document.getElementById("minecraft-note").textContent = "Status unavailable";
           document.getElementById("minecraft-logs").textContent = "Status unavailable";
         }
