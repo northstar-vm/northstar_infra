@@ -7,6 +7,7 @@ import re
 import socket
 import sqlite3
 import struct
+import tarfile
 import threading
 import time
 from urllib.parse import parse_qs, quote, urlparse
@@ -15,6 +16,7 @@ from urllib.parse import parse_qs, quote, urlparse
 HOST_ROOT = "/host"
 DATA_DIR = "/data"
 BACKUP_DIR = os.environ.get("MINECRAFT_BACKUP_DIR", "/backups/minecraft")
+MINECRAFT_DATA_DIR = os.environ.get("MINECRAFT_DATA_DIR", "/host/opt/northstar/apps/minecraft/data")
 DB_PATH = os.environ.get("NORTHSTAR_DB_PATH", os.path.join(DATA_DIR, "northstar.db"))
 DOCKER_SOCKET = os.environ.get("DOCKER_SOCKET", "/var/run/docker.sock")
 METRICS_RETENTION_DAYS = int(os.environ.get("METRICS_RETENTION_DAYS", "10"))
@@ -47,6 +49,7 @@ DOCKER_ACTIONS = {"start", "stop", "restart", "pause", "unpause"}
 LATEST_PAYLOAD = None
 LATEST_PAYLOAD_TS = 0
 PAYLOAD_LOCK = threading.Lock()
+BACKUP_LOCK = threading.Lock()
 
 
 def bytes_to_gib(value):
@@ -1022,6 +1025,63 @@ def read_backup_summary(limit=8):
         return {"available": False, "files": [], "total_mib": 0, "error": str(error)}
 
 
+def create_minecraft_backup():
+    if not BACKUP_LOCK.acquire(blocking=False):
+        raise RuntimeError("backup already running")
+
+    save_disabled = False
+    try:
+        if not os.path.isdir(MINECRAFT_DATA_DIR):
+            raise FileNotFoundError("Minecraft data directory not mounted")
+
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        timestamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        filename = f"minecraft-world-{timestamp}.tar.gz"
+        backup_path = os.path.join(BACKUP_DIR, filename)
+        partial_path = f"{backup_path}.partial"
+
+        container = find_container_by_name(MINECRAFT_CONTAINER)
+        if container and container.get("State") == "running":
+            try:
+                run_container_exec(container["Id"], ["rcon-cli", "save-off"])
+                save_disabled = True
+                run_container_exec(container["Id"], ["rcon-cli", "save-all", "flush"])
+            except Exception as error:
+                raise RuntimeError(f"Minecraft save-off failed: {error}") from error
+
+        with tarfile.open(partial_path, "w:gz") as archive:
+            archive.add(MINECRAFT_DATA_DIR, arcname=".")
+        os.replace(partial_path, backup_path)
+
+        if save_disabled and container:
+            run_container_exec(container["Id"], ["rcon-cli", "save-on"])
+            save_disabled = False
+
+        stat = os.stat(backup_path)
+        log_event(f"minecraft backup created: {filename}")
+        return {
+            "ok": True,
+            "file": filename,
+            "size_mib": round(stat.st_size / (1024 ** 2), 1),
+            "backups": read_backup_summary(),
+        }
+    except Exception:
+        try:
+            if "partial_path" in locals() and os.path.exists(partial_path):
+                os.remove(partial_path)
+        finally:
+            raise
+    finally:
+        if save_disabled:
+            try:
+                container = find_container_by_name(MINECRAFT_CONTAINER)
+                if container:
+                    run_container_exec(container["Id"], ["rcon-cli", "save-on"])
+            except Exception as error:
+                log_event(f"minecraft backup save-on failed: {error}")
+        BACKUP_LOCK.release()
+
+
 def build_status_payload(store=False):
     cpu = read_cpu()
     memory = read_memory()
@@ -1155,6 +1215,21 @@ class StatusHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/minecraft/backup":
+            if self.headers.get("X-Northstar-Action") != "1":
+                self.send_error(403)
+                return
+
+            try:
+                result = create_minecraft_backup()
+                set_latest_payload(build_status_payload(store=True))
+                self.send_json(result)
+            except FileNotFoundError as error:
+                self.send_error(404, str(error))
+            except Exception as error:
+                self.send_error(500, str(error))
+            return
+
         if parsed.path == "/minecraft/command":
             if self.headers.get("X-Northstar-Action") != "1":
                 self.send_error(403)

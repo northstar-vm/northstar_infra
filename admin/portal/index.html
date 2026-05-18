@@ -583,6 +583,9 @@
             </div>
             <span class="metric-value" id="backup-total">--</span>
           </div>
+          <div class="actions">
+            <button type="button" class="button-start" id="backup-now">Backup now</button>
+          </div>
           <table class="player-history">
             <thead>
               <tr>
@@ -1033,6 +1036,35 @@
         }
       };
 
+      const runBackupNow = async () => {
+        const button = document.getElementById("backup-now");
+        const note = document.getElementById("backup-note");
+        button.disabled = true;
+        button.textContent = "Backing up...";
+        note.textContent = "Backup running...";
+        try {
+          const response = await fetch("/status/minecraft/backup", {
+            method: "POST",
+            headers: { "X-Northstar-Action": "1" },
+          });
+          const text = await response.text();
+          if (!response.ok) {
+            throw new Error(text || `status ${response.status}`);
+          }
+          const data = JSON.parse(text);
+          note.textContent = `Created ${data.file} (${Number(data.size_mib || 0).toFixed(1)} MiB)`;
+          if (data.backups) {
+            setBackups(data.backups);
+          }
+          await loadStatus();
+        } catch (error) {
+          note.textContent = `Backup failed: ${error.message}`;
+        } finally {
+          button.disabled = false;
+          button.textContent = "Backup now";
+        }
+      };
+
       const runMinecraftCommand = async (event) => {
         event.preventDefault();
         const input = document.getElementById("minecraft-command");
@@ -1117,6 +1149,7 @@
       };
 
       document.getElementById("minecraft-console").addEventListener("submit", runMinecraftCommand);
+      document.getElementById("backup-now").addEventListener("click", runBackupNow);
       loadPersistedHistory().then(loadStatus);
       setInterval(loadStatus, 30000);
     </script>
