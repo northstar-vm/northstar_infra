@@ -27,7 +27,7 @@ git commit -m "Describe the change"
 git push
 ```
 
-After pushing to `main`, GitHub Actions SSHes into the VM and runs `/opt/northstar/infra/scripts/deploy-infra.sh`.
+After pushing to `main`, GitHub Actions SSHes into the VM and runs `/opt/northstar/infra/scripts/deploy-infra.sh`. The script force-recreates admin, CV, and proxy/Caddy services so code and static file changes take effect immediately. Minecraft is intentionally not recreated by CI; restart it manually when needed.
 
 ## 1. Prepare Folders
 
@@ -274,7 +274,7 @@ docker compose up -d
 
 File Browser is configured with no internal login and relies on Caddy Basic Auth for the northstar admin domain. Use `vallutto` for the Caddy Basic Auth username in `/opt/northstar/infra/proxy/.env`.
 
-The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, and Minecraft Docker logs. It stores 10 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers and a narrow Minecraft command console; Caddy, File Browser, and the status service are protected from browser Docker actions so you do not lock yourself out.
+The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, and Minecraft Docker logs. It stores 10 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers, expandable live Docker logs, and a narrow Minecraft command console.
 Player profiles in SQLite store nickname, UUID when available from logs, first seen, last seen, join count, leave count, and last action.
 
 Check the status service:
@@ -505,3 +505,5 @@ Every push to `northstar_infra/main` deploys directly:
 ```text
 GitHub Actions -> SSH northstar -> git pull /opt/northstar/infra -> restart infra services
 ```
+
+CI force-recreates admin, CV, and proxy/Caddy services. Minecraft is left running with `docker compose up -d --no-recreate`; restart it manually from `/opt/northstar/infra/apps/minecraft` when you intentionally want a Minecraft restart.

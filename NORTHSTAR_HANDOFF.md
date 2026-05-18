@@ -451,13 +451,14 @@ docker compose logs --tail=80 filebrowser
 docker compose logs --tail=40 status
 ```
 
-The portal homepage shows VM CPU/RAM/disk usage, Docker container stats and safe actions, and a Minecraft panel with player count, persisted player history, Docker logs, and a command console. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
+The portal homepage shows VM CPU/RAM/disk usage, Docker container stats, allowlisted Docker actions, expandable live Docker logs, and a Minecraft panel with player count, persisted player history, Docker logs, and a command console. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
 Player profiles in SQLite store nickname, UUID when available from logs, first seen, last seen, join count, leave count, and last action.
 
 Status service design:
 
 - Mounts `/` and `/proc` read-only for VM stats.
 - Mounts `/var/run/docker.sock` for Docker stats and allowlisted start/stop/restart/pause actions.
+- Serves full allowlisted Docker logs to the portal at `/status/docker/logs?container=...`.
 - Stores 10 days of SQLite history in `/opt/northstar/admin/status-data/northstar.db`.
 - Reads Minecraft raw logs through Docker logs for `northstar-minecraft`.
 - Sends Minecraft panel commands through `docker exec ... mc-send-to-console`, with `rcon-cli` fallback, never through a shell.
@@ -465,7 +466,12 @@ Status service design:
 - Queries Minecraft through the normal server-list ping on `northstar-minecraft:25565`.
 - Exposes only container port `8080` on the Docker network.
 - Caddy proxies `/status/*` behind the existing northstar Basic Auth.
-- Caddy, File Browser, and status are protected from browser Docker actions.
+
+Infra deployment:
+
+- Every push to `northstar_infra/main` runs GitHub Actions and then `/opt/northstar/infra/scripts/deploy-infra.sh` on the VM.
+- The deploy script force-recreates admin, CV, and proxy/Caddy services so frontend and Python changes take effect immediately.
+- Minecraft is intentionally left running with `docker compose up -d --no-recreate`; restart it manually from `/opt/northstar/infra/apps/minecraft` when needed.
 
 Manual status checks on the VM:
 
