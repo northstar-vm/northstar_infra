@@ -20,11 +20,11 @@ sudo chmod 775 /opt/northstar/admin/files
 sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files
 
 cd "$INFRA_DIR/admin"
-docker compose up -d
+docker compose up -d --force-recreate
 
 if [ -d /opt/northstar/apps/cv/.git ]; then
   cd "$INFRA_DIR/apps/cv"
-  docker compose up -d
+  docker compose up -d --force-recreate
 fi
 
 if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
@@ -46,7 +46,7 @@ if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
   sudo chmod 664 "$PAPER_GLOBAL_CONFIG"
 
   cd "$INFRA_DIR/apps/minecraft"
-  docker compose up -d
+  docker compose up -d --no-recreate
 fi
 
 cd "$INFRA_DIR/proxy"
@@ -54,7 +54,7 @@ if [ ! -f .env ]; then
   echo "Missing $INFRA_DIR/proxy/.env. Copy proxy/.env.example to proxy/.env on the VM and fill in real values." >&2
   exit 1
 fi
-docker compose up -d
+docker compose up -d --force-recreate
 docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || true
 
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
