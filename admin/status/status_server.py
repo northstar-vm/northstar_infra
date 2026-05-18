@@ -21,6 +21,8 @@ MEMINFO_PATH = "/host/proc/meminfo"
 MINECRAFT_HOST = os.environ.get("MINECRAFT_HOST", "northstar-minecraft")
 MINECRAFT_CONTAINER = os.environ.get("MINECRAFT_CONTAINER", "northstar-minecraft")
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
+MINECRAFT_LOG_RECENT_SECONDS = int(os.environ.get("MINECRAFT_LOG_RECENT_SECONDS", "1800"))
+MINECRAFT_LOG_RECENT_TAIL = int(os.environ.get("MINECRAFT_LOG_RECENT_TAIL", "200"))
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
 PLAYER_LOGIN_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
@@ -52,6 +54,11 @@ def bytes_to_mib(value):
 
 def now_ts():
     return int(time.time())
+
+
+def log_event(message):
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}", flush=True)
 
 
 def open_db():
@@ -450,7 +457,7 @@ def read_container_log_text(name):
 
     path = f"/containers/{quote(match['Id'])}/logs?stdout=1&stderr=1&timestamps=1"
     text = docker_client.request_text("GET", path)
-    return text if text.strip() else "Docker logs are empty.\n"
+    return text if text.strip() else f"No logs for {name} yet.\n"
 
 
 def encode_varint(value):
@@ -542,12 +549,14 @@ def query_minecraft_status():
         }
 
 
-def read_minecraft_log_text(tail=500):
+def read_minecraft_log_text(tail=500, since=None):
     try:
         container = find_container_by_name(MINECRAFT_CONTAINER)
         if not container:
             return "Minecraft container is not available.\n"
         path = f"/containers/{quote(container['Id'])}/logs?stdout=1&stderr=1&tail={int(tail)}&timestamps=0"
+        if since is not None:
+            path += f"&since={int(since)}"
         text = docker_client.request_text("GET", path)
         return text if text.strip() else "Minecraft Docker logs are empty.\n"
     except Exception as error:
@@ -556,6 +565,15 @@ def read_minecraft_log_text(tail=500):
 
 def read_full_minecraft_log():
     return [line.rstrip() for line in read_minecraft_log_text().splitlines() if line.rstrip()]
+
+
+def read_recent_minecraft_log():
+    since = now_ts() - MINECRAFT_LOG_RECENT_SECONDS
+    return [
+        line.rstrip()
+        for line in read_minecraft_log_text(tail=MINECRAFT_LOG_RECENT_TAIL, since=since).splitlines()
+        if line.rstrip()
+    ]
 
 
 def read_player_history(lines=None):
@@ -940,7 +958,7 @@ def build_status_payload(store=False):
     cpu = read_cpu()
     memory = read_memory()
     disk = read_disk()
-    minecraft_logs = read_full_minecraft_log()
+    minecraft_logs = read_recent_minecraft_log()
     minecraft = {
         "status": query_minecraft_status(),
         "logs": minecraft_logs,
@@ -981,8 +999,8 @@ def sampler_loop():
         try:
             set_latest_payload(build_status_payload(store=True))
             prune_history()
-        except Exception:
-            pass
+        except Exception as error:
+            log_event(f"sampler error: {error}")
         time.sleep(max(15, METRICS_SAMPLE_SECONDS))
 
 
@@ -1074,6 +1092,7 @@ class StatusHandler(BaseHTTPRequestHandler):
                 length = int(self.headers.get("Content-Length", "0"))
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
                 result = run_minecraft_command(str(payload.get("command", "")))
+                log_event("minecraft command sent")
                 self.send_json(result)
             except ValueError as error:
                 self.send_error(400, str(error))
@@ -1097,6 +1116,7 @@ class StatusHandler(BaseHTTPRequestHandler):
             name = str(payload.get("container", ""))
             action = str(payload.get("action", ""))
             result = perform_container_action(name, action)
+            log_event(f"docker action {action} requested for {name}")
             self.send_json(result)
         except PermissionError as error:
             self.send_error(403, str(error))
@@ -1115,11 +1135,14 @@ class StatusHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, format, *args):
-        return
+        if self.path.startswith(("/api", "/health", "/docker/logs", "/minecraft/logs")):
+            return
+        log_event(format % args)
 
 
 if __name__ == "__main__":
     init_db()
+    log_event("northstar status service starting on :8080")
     threading.Thread(target=sampler_loop, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", 8080), StatusHandler)
     server.serve_forever()
