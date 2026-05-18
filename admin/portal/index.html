@@ -361,7 +361,7 @@
 
       .actions {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 6px;
         justify-content: flex-start;
       }
@@ -398,6 +398,7 @@
         color: var(--fg);
         font: inherit;
         cursor: pointer;
+        white-space: nowrap;
       }
 
       button:hover,
@@ -663,6 +664,9 @@
       let dockerLogHasScrolled = false;
 
       const visibleActions = (container) => {
+        if (container.protected) {
+          return [];
+        }
         if (container.state === "running") {
           return ["restart", "stop", "pause"];
         }
@@ -818,7 +822,14 @@
           return;
         }
 
-        for (const container of containers) {
+        const sortedContainers = [...containers].sort((left, right) => {
+          if (Boolean(left.protected) !== Boolean(right.protected)) {
+            return left.protected ? -1 : 1;
+          }
+          return String(left.name || "").localeCompare(String(right.name || ""));
+        });
+
+        for (const container of sortedContainers) {
           const row = document.createElement("tr");
           const values = [
             container.name,
@@ -858,6 +869,12 @@
               button.textContent = actionLabel[action] || action;
               button.addEventListener("click", () => runDockerAction(container.name, action, button));
               actions.appendChild(button);
+            }
+            if (container.protected) {
+              const locked = document.createElement("span");
+              locked.className = "hint";
+              locked.textContent = "Protected";
+              actions.appendChild(locked);
             }
             const logsButton = document.createElement("button");
             logsButton.type = "button";
