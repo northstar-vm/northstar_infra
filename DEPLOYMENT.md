@@ -4,12 +4,12 @@ These steps assume you are SSH'd into the VM as `ubuntu`.
 
 This repo should become the separate private GitHub repo `northstar-infra`. Do not place these files inside `/opt/northstar/apps/quizzy` or the `cruetto/IndividualTeacher` app repo.
 
-## GitHub Actions
+## CI/CD
 
-This repo uses two workflows:
+GitHub Actions deploys the repo directly.
 
-- `CI/CD`: runs automatically on push and pull request. Pushes to `main` deploy infra after validation passes.
-- `Deploy`: runs manually from GitHub Actions with a target of `infra`, `cv`, or `all`.
+- `Deploy Infra`: runs automatically on push to `main`.
+- The same workflow can also be run manually from GitHub Actions.
 
 Create these GitHub repository secrets before running deploy:
 
@@ -27,8 +27,7 @@ git commit -m "Describe the change"
 git push
 ```
 
-After pushing, CI runs automatically. To deploy, open GitHub Actions, choose `Deploy`, click `Run workflow`, and pick the target.
-For pushes to `main`, infra deployment runs automatically after CI passes. Use the manual `Deploy` workflow only when you want to redeploy without a new commit, deploy `cv`, or deploy `all`.
+After pushing to `main`, GitHub Actions SSHes into the VM and runs `/opt/northstar/infra/scripts/deploy-infra.sh`.
 
 ## 1. Prepare Folders
 
@@ -502,27 +501,7 @@ NORTHSTAR_USER=ubuntu
 NORTHSTAR_SSH_KEY=<contents of ./northstar_actions private key>
 ```
 
-For CV CI/CD:
-
-```text
-Copy github-actions-templates/deploy-cv.yml
-to cruetto/PortfolioWebsite/.github/workflows/deploy-cv.yml
-```
-
-Then every push to `PortfolioWebsite/main` deploys:
-
-```text
-GitHub Actions -> SSH northstar -> git pull /opt/northstar/apps/cv -> restart CV Nginx
-```
-
-For infra CI/CD:
-
-```text
-Copy github-actions-templates/deploy-infra.yml
-to this repo as .github/workflows/deploy-infra.yml
-```
-
-Then every push to `northstar_infra/main` deploys:
+Every push to `northstar_infra/main` deploys directly:
 
 ```text
 GitHub Actions -> SSH northstar -> git pull /opt/northstar/infra -> restart infra services

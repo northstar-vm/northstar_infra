@@ -61,11 +61,9 @@ Public URL:
 https://cv.attentionisallineed.xyz
 ```
 
-CI/CD target:
+Deploy target:
 
-- Pushes to `cruetto/PortfolioWebsite` should run the `deploy-cv.yml` workflow.
-- That workflow SSHes into northstar and runs `/opt/northstar/infra/scripts/deploy-cv.sh`.
-- The script updates `/opt/northstar/apps/cv` and restarts the CV Nginx container.
+- The script `/opt/northstar/infra/scripts/deploy-cv.sh` updates `/opt/northstar/apps/cv` and restarts the CV Nginx container.
 
 ## What This Adds
 
@@ -81,11 +79,10 @@ Portainer has been removed. Use the built-in Docker panel for common actions, an
 
 ## CI/CD
 
-GitHub Actions are active in `.github/workflows`:
+GitHub Actions deploy is active in `.github/workflows/deploy.yml`:
 
-- `CI/CD` runs on pushes and pull requests. It validates shell scripts, Python syntax, and Docker Compose files.
-- Pushes to `main` automatically run `/opt/northstar/infra/scripts/deploy-infra.sh` on the VM after validation passes.
-- `Deploy` is still available manually from the GitHub Actions tab. Choose `infra`, `cv`, or `all`.
+- Pushes to `main` automatically run `/opt/northstar/infra/scripts/deploy-infra.sh` on the VM.
+- The workflow can also be run manually from the GitHub Actions tab.
 
 Add these repository secrets in GitHub before using deploy:
 
@@ -95,7 +92,7 @@ NORTHSTAR_USER=ubuntu
 NORTHSTAR_SSH_KEY=<private deploy key with access to the VM>
 ```
 
-Automatic deploy requires the GitHub secrets below. Manual deploy uses the same secrets.
+Automatic deploy uses these secrets to SSH into the VM.
 
 ## File Browser Scope
 
@@ -242,24 +239,3 @@ Oracle cost guardrails:
 - A1 memory quota: `standard-a1-memory-count` set to `24`
 - A2 quotas set to `0`
 - Budget alert enabled
-
-## CI/CD
-
-Workflow templates live in:
-
-```text
-github-actions-templates/
-```
-
-Use them like this:
-
-- Copy `deploy-cv.yml` into `cruetto/PortfolioWebsite/.github/workflows/deploy-cv.yml`.
-- Optionally copy `deploy-infra.yml` into this repo as `.github/workflows/deploy-infra.yml` after GitHub secrets are configured.
-
-Both workflows require these repository secrets:
-
-```text
-NORTHSTAR_HOST=130.61.33.233
-NORTHSTAR_USER=ubuntu
-NORTHSTAR_SSH_KEY=<private SSH key allowed in /home/ubuntu/.ssh/authorized_keys>
-```
