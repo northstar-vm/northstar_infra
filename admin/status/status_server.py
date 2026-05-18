@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from datetime import datetime
 import json
 import os
 import re
@@ -13,6 +14,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 HOST_ROOT = "/host"
 DATA_DIR = "/data"
+BACKUP_DIR = os.environ.get("MINECRAFT_BACKUP_DIR", "/backups/minecraft")
 DB_PATH = os.environ.get("NORTHSTAR_DB_PATH", os.path.join(DATA_DIR, "northstar.db"))
 DOCKER_SOCKET = os.environ.get("DOCKER_SOCKET", "/var/run/docker.sock")
 METRICS_RETENTION_DAYS = int(os.environ.get("METRICS_RETENTION_DAYS", "10"))
@@ -23,11 +25,14 @@ MINECRAFT_CONTAINER = os.environ.get("MINECRAFT_CONTAINER", "northstar-minecraft
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
 MINECRAFT_LOG_RECENT_SECONDS = int(os.environ.get("MINECRAFT_LOG_RECENT_SECONDS", "1800"))
 MINECRAFT_LOG_RECENT_TAIL = int(os.environ.get("MINECRAFT_LOG_RECENT_TAIL", "200"))
+MINECRAFT_HISTORY_LOG_SECONDS = int(os.environ.get("MINECRAFT_HISTORY_LOG_SECONDS", "86400"))
+MINECRAFT_HISTORY_LOG_TAIL = int(os.environ.get("MINECRAFT_HISTORY_LOG_TAIL", "5000"))
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
 PLAYER_LOGIN_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
 PLAYER_LOGOUT_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) left the game$")
 PLAYER_UUID_PATTERN = re.compile(r"UUID of player (?P<name>[A-Za-z0-9_]{3,16}) is (?P<uuid>[0-9a-fA-F-]{32,36})")
+DOCKER_TS_PATTERN = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2}T\S+Z)\s+(?P<line>.*)$")
 ALLOWED_CONTAINERS = {
     name.strip()
     for name in os.environ.get("DOCKER_ALLOWED_CONTAINERS", "").split(",")
@@ -549,12 +554,13 @@ def query_minecraft_status():
         }
 
 
-def read_minecraft_log_text(tail=500, since=None):
+def read_minecraft_log_text(tail=500, since=None, timestamps=False):
     try:
         container = find_container_by_name(MINECRAFT_CONTAINER)
         if not container:
             return "Minecraft container is not available.\n"
-        path = f"/containers/{quote(container['Id'])}/logs?stdout=1&stderr=1&tail={int(tail)}&timestamps=0"
+        ts_flag = "1" if timestamps else "0"
+        path = f"/containers/{quote(container['Id'])}/logs?stdout=1&stderr=1&tail={int(tail)}&timestamps={ts_flag}"
         if since is not None:
             path += f"&since={int(since)}"
         text = docker_client.request_text("GET", path)
@@ -574,6 +580,38 @@ def read_recent_minecraft_log():
         for line in read_minecraft_log_text(tail=MINECRAFT_LOG_RECENT_TAIL, since=since).splitlines()
         if line.rstrip()
     ]
+
+
+def read_history_minecraft_log():
+    since = now_ts() - MINECRAFT_HISTORY_LOG_SECONDS
+    return [
+        line.rstrip()
+        for line in read_minecraft_log_text(tail=MINECRAFT_HISTORY_LOG_TAIL, since=since, timestamps=True).splitlines()
+        if line.rstrip()
+    ]
+
+
+def parse_docker_log_line(line):
+    match = DOCKER_TS_PATTERN.match(line)
+    if not match:
+        return None, line
+    raw_ts = match.group("ts")
+    try:
+        normalized = raw_ts.replace("Z", "+00:00")
+        if "." in normalized:
+            head, tail = normalized.split(".", 1)
+            fraction, offset = tail.split("+", 1)
+            normalized = f"{head}.{fraction[:6].ljust(6, '0')}+{offset}"
+        event_ts = int(datetime.fromisoformat(normalized).timestamp())
+    except ValueError:
+        event_ts = None
+    return event_ts, match.group("line")
+
+
+def format_event_time(event_ts, fallback):
+    if event_ts:
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(event_ts))
+    return fallback
 
 
 def read_player_history(lines=None):
@@ -644,7 +682,8 @@ def run_container_exec(container_id, command):
 def read_player_events(lines):
     events = []
     uuid_by_player = {}
-    for line in lines:
+    for raw_line in lines:
+        event_ts, line = parse_docker_log_line(raw_line)
         uuid_match = PLAYER_UUID_PATTERN.search(line)
         if uuid_match:
             uuid_by_player[uuid_match.group("name")] = uuid_match.group("uuid")
@@ -660,7 +699,8 @@ def read_player_events(lines):
                 "player": match.group("name"),
                 "uuid": uuid_by_player.get(match.group("name")),
                 "action": "joined" if login else "left",
-                "raw_line": line,
+                "event_ts": event_ts,
+                "raw_line": raw_line,
             }
         )
     return events
@@ -668,7 +708,7 @@ def read_player_events(lines):
 
 def store_player_events():
     observed = now_ts()
-    lines = read_full_minecraft_log()
+    lines = read_history_minecraft_log()
     events = read_player_events(lines)
     with open_db() as db:
         if lines:
@@ -680,7 +720,8 @@ def store_player_events():
                 [(line, observed) for line in lines[-500:]],
             )
 
-        for line in lines:
+        for raw_line in lines:
+            _, line = parse_docker_log_line(raw_line)
             uuid_match = PLAYER_UUID_PATTERN.search(line)
             if not uuid_match:
                 continue
@@ -696,32 +737,25 @@ def store_player_events():
                     """,
                     (player_uuid, player),
                 )
-            else:
-                db.execute(
-                    """
-                    INSERT INTO player_profiles
-                    (player, uuid, first_seen_ts, first_seen_time, last_seen_ts, last_seen_time, last_action, joins, leaves)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
-                    """,
-                    (player, player_uuid, observed, "uuid", observed, "uuid", "uuid"),
-                )
 
         if not events:
             return
 
         for event in events:
+            event_ts = event.get("event_ts") or observed
+            event_time = format_event_time(event.get("event_ts"), event["log_time"])
             cursor = db.execute(
                 """
                 INSERT OR IGNORE INTO player_events (observed_ts, log_time, player, action, raw_line)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (observed, event["log_time"], event["player"], event["action"], event["raw_line"]),
+                (event_ts, event_time, event["player"], event["action"], event["raw_line"]),
             )
             if cursor.rowcount == 0:
                 continue
 
             player = event["player"]
-            existing = db.execute("SELECT player FROM player_profiles WHERE player = ?", (player,)).fetchone()
+            existing = db.execute("SELECT last_action FROM player_profiles WHERE player = ?", (player,)).fetchone()
             join_delta = 1 if event["action"] == "joined" else 0
             leave_delta = 1 if event["action"] == "left" else 0
             if existing:
@@ -729,6 +763,8 @@ def store_player_events():
                     """
                     UPDATE player_profiles
                     SET uuid = COALESCE(?, uuid),
+                        first_seen_ts = CASE WHEN last_action = 'uuid' THEN ? ELSE first_seen_ts END,
+                        first_seen_time = CASE WHEN last_action = 'uuid' THEN ? ELSE first_seen_time END,
                         last_seen_ts = ?,
                         last_seen_time = ?,
                         last_action = ?,
@@ -736,7 +772,7 @@ def store_player_events():
                         leaves = leaves + ?
                     WHERE player = ?
                     """,
-                    (event.get("uuid"), observed, event["log_time"], event["action"], join_delta, leave_delta, player),
+                    (event.get("uuid"), event_ts, event_time, event_ts, event_time, event["action"], join_delta, leave_delta, player),
                 )
             else:
                 db.execute(
@@ -748,10 +784,10 @@ def store_player_events():
                     (
                         player,
                         event.get("uuid"),
-                        observed,
-                        event["log_time"],
-                        observed,
-                        event["log_time"],
+                        event_ts,
+                        event_time,
+                        event_ts,
+                        event_time,
                         event["action"],
                         join_delta,
                         leave_delta,
@@ -898,9 +934,6 @@ def store_sample(cpu, memory, disk, minecraft, docker):
             ],
         )
 
-    store_player_events()
-
-
 def read_history_summary():
     with open_db() as db:
         vm_count = db.execute("SELECT COUNT(*) FROM vm_samples").fetchone()[0]
@@ -954,11 +987,48 @@ def read_latest_container_history():
     ]
 
 
+def read_backup_summary(limit=8):
+    try:
+        entries = []
+        total_bytes = 0
+        if not os.path.isdir(BACKUP_DIR):
+            return {"available": False, "files": [], "total_mib": 0, "error": "backup directory not mounted"}
+
+        for name in os.listdir(BACKUP_DIR):
+            if not name.startswith("minecraft-world-") or not name.endswith(".tar.gz"):
+                continue
+            path = os.path.join(BACKUP_DIR, name)
+            try:
+                stat = os.stat(path)
+            except OSError:
+                continue
+            total_bytes += stat.st_size
+            entries.append(
+                {
+                    "name": name,
+                    "mtime": int(stat.st_mtime),
+                    "size_mib": round(stat.st_size / (1024 ** 2), 1),
+                }
+            )
+
+        entries.sort(key=lambda item: item["mtime"], reverse=True)
+        return {
+            "available": True,
+            "files": entries[:limit],
+            "count": len(entries),
+            "total_mib": round(total_bytes / (1024 ** 2), 1),
+        }
+    except Exception as error:
+        return {"available": False, "files": [], "total_mib": 0, "error": str(error)}
+
+
 def build_status_payload(store=False):
     cpu = read_cpu()
     memory = read_memory()
     disk = read_disk()
     minecraft_logs = read_recent_minecraft_log()
+    if store:
+        store_player_events()
     minecraft = {
         "status": query_minecraft_status(),
         "logs": minecraft_logs,
@@ -975,6 +1045,7 @@ def build_status_payload(store=False):
         "disk": disk,
         "docker": docker,
         "minecraft": minecraft,
+        "backups": read_backup_summary(),
         "history": read_history_summary(),
     }
     return payload
@@ -1062,6 +1133,7 @@ class StatusHandler(BaseHTTPRequestHandler):
                     "logs": read_stored_minecraft_logs(),
                     "players": read_persisted_player_history(),
                 },
+                "backups": read_backup_summary(),
                 "summary": read_history_summary(),
             }
             self.send_json(payload)

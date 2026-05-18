@@ -25,6 +25,7 @@ services:
     volumes:
       - ./status:/app:ro
       - /opt/northstar/admin/status-data:/data
+      - /opt/northstar/backups/minecraft:/backups/minecraft:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /:/host:ro
       - /proc:/host/proc:ro

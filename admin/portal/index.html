@@ -574,6 +574,30 @@
           <div class="console-output" id="minecraft-console-output">Commands are sent to the Minecraft container console.</div>
           <pre class="logs" id="minecraft-logs">Loading logs...</pre>
         </div>
+
+        <div class="metric minecraft-panel">
+          <div class="minecraft-head">
+            <div>
+              <span class="metric-name">Backups</span>
+              <div class="metric-note" id="backup-note">Loading backups...</div>
+            </div>
+            <span class="metric-value" id="backup-total">--</span>
+          </div>
+          <table class="player-history">
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Date</th>
+                <th>MB</th>
+              </tr>
+            </thead>
+            <tbody id="backup-files">
+              <tr>
+                <td colspan="3">Loading backups...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
       
     </main>
@@ -972,6 +996,43 @@
           logs.length ? logs.join("\n") : "No log lines available";
       };
 
+      const setBackups = (backups) => {
+        const note = document.getElementById("backup-note");
+        const total = document.getElementById("backup-total");
+        const body = document.getElementById("backup-files");
+        const files = backups.files || [];
+
+        body.replaceChildren();
+        total.textContent = backups.available ? formatMib(backups.total_mib || 0) : "--";
+        note.textContent = backups.available
+          ? `${backups.count || 0} backup file${backups.count === 1 ? "" : "s"} stored`
+          : backups.error || "Backups unavailable";
+
+        if (!files.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 3;
+          cell.textContent = backups.available ? "No backups found" : "Backup directory unavailable";
+          row.appendChild(cell);
+          body.appendChild(row);
+          return;
+        }
+
+        for (const file of files) {
+          const row = document.createElement("tr");
+          for (const value of [
+            file.name,
+            formatSeen(file.mtime, "-"),
+            Number(file.size_mib || 0).toFixed(1),
+          ]) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+          }
+          body.appendChild(row);
+        }
+      };
+
       const runMinecraftCommand = async (event) => {
         event.preventDefault();
         const input = document.getElementById("minecraft-command");
@@ -1016,12 +1077,14 @@
           setMetric("disk", data.disk);
           setDocker(data.docker || {}, data.history || {});
           setMinecraft(data.minecraft || {});
+          setBackups(data.backups || {});
         } catch (error) {
           document.getElementById("cpu-note").textContent = "Status unavailable";
           document.getElementById("memory-note").textContent = "Status unavailable";
           document.getElementById("disk-note").textContent = "Status unavailable";
           document.getElementById("docker-note").textContent = "Status unavailable";
           document.getElementById("minecraft-note").textContent = "Status unavailable";
+          document.getElementById("backup-note").textContent = "Status unavailable";
           document.getElementById("minecraft-logs").textContent = "Status unavailable";
         }
       };
