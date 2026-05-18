@@ -11,6 +11,8 @@ docker network inspect northstar_web >/dev/null 2>&1 || docker network create no
 NORTHSTAR_FILE_UID="$(id -u ubuntu)"
 NORTHSTAR_FILE_GID="$(id -g ubuntu)"
 export NORTHSTAR_FILE_UID NORTHSTAR_FILE_GID
+MINECRAFT_UID="${MINECRAFT_UID:-1000}"
+MINECRAFT_GID="${MINECRAFT_GID:-1000}"
 
 sudo mkdir -p /opt/northstar/admin/files /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config /opt/northstar/admin/status-data /opt/northstar/backups /opt/northstar/apps
 sudo chown -R "$NORTHSTAR_FILE_UID:$NORTHSTAR_FILE_GID" /opt/northstar/admin/files /opt/northstar/admin/filebrowser
@@ -31,7 +33,7 @@ if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
   PAPER_GLOBAL_CONFIG="/opt/northstar/apps/minecraft/data/config/paper-global.yml"
 
   sudo mkdir -p /opt/northstar/apps/minecraft/data
-  sudo chown -R ubuntu:ubuntu /opt/northstar/apps/minecraft
+  sudo chown -R "$MINECRAFT_UID:$MINECRAFT_GID" /opt/northstar/apps/minecraft/data
   sudo chmod -R u+rwX,g+rwX /opt/northstar/apps/minecraft/data
   sudo mkdir -p "$(dirname "$PAPER_GLOBAL_CONFIG")"
   if [ ! -f "$PAPER_GLOBAL_CONFIG" ]; then
@@ -42,7 +44,7 @@ if [ -f "$INFRA_DIR/apps/minecraft/.env" ]; then
   else
     printf "\nspark:\n  enable-immediately: false\n  enabled: false\n" | sudo tee -a "$PAPER_GLOBAL_CONFIG" >/dev/null
   fi
-  sudo chown ubuntu:ubuntu "$PAPER_GLOBAL_CONFIG"
+  sudo chown "$MINECRAFT_UID:$MINECRAFT_GID" "$PAPER_GLOBAL_CONFIG"
   sudo chmod 664 "$PAPER_GLOBAL_CONFIG"
 
   cd "$INFRA_DIR/apps/minecraft"
