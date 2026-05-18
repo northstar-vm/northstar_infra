@@ -2,7 +2,7 @@
 
 These steps assume you are SSH'd into the VM as `ubuntu`.
 
-This repo is the separate private GitHub repo for northstar VM infrastructure. Do not place these files inside `/opt/northstar/apps/quizzy` or the `cruetto/IndividualTeacher` app repo.
+This repo is the separate private GitHub repo for northstar VM infrastructure. Do not place these files inside `/opt/northstar/apps/quizzy` or the `northstar-vm/quizzy` app repo.
 
 ## CI/CD
 
@@ -500,7 +500,7 @@ NORTHSTAR_USER=ubuntu
 NORTHSTAR_SSH_KEY=<contents of ./northstar_actions private key>
 ```
 
-Every push to `northstar_infra/main` deploys directly:
+Every push to `northstar-vm/northstar_infra` `main` deploys directly:
 
 ```text
 GitHub Actions -> SSH northstar -> git pull /opt/northstar/infra -> restart infra services

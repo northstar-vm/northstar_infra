@@ -114,13 +114,13 @@ sudo ufw status verbose
 Main app repo:
 
 ```text
-https://github.com/cruetto/IndividualTeacher
+https://github.com/northstar-vm/quizzy
 ```
 
 Infra repo:
 
 ```text
-https://github.com/cruetto/northstar_infra
+https://github.com/northstar-vm/northstar_infra
 ```
 
 CV repo:
@@ -469,7 +469,7 @@ Status service design:
 
 Infra deployment:
 
-- Every push to `northstar_infra/main` runs GitHub Actions and then `/opt/northstar/infra/scripts/deploy-infra.sh` on the VM.
+- Every push to `northstar-vm/northstar_infra` `main` runs GitHub Actions and then `/opt/northstar/infra/scripts/deploy-infra.sh` on the VM.
 - The deploy script force-recreates admin, CV, and proxy/Caddy services so frontend and Python changes take effect immediately.
 - Minecraft is intentionally left running with `docker compose up -d --no-recreate`; restart it manually from `/opt/northstar/infra/apps/minecraft` when needed.
 
