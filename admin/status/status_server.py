@@ -432,6 +432,19 @@ def perform_container_action(name, action):
     return {"ok": True, "container": name, "action": action}
 
 
+def read_container_log_text(name):
+    if not is_allowed_container(name):
+        raise PermissionError("container is not allowlisted")
+
+    match = find_container_by_name(name)
+    if not match:
+        raise FileNotFoundError("container not found")
+
+    path = f"/containers/{quote(match['Id'])}/logs?stdout=1&stderr=1&timestamps=1"
+    text = docker_client.request_text("GET", path)
+    return text if text.strip() else "Docker logs are empty.\n"
+
+
 def encode_varint(value):
     value &= 0xFFFFFFFF
     data = bytearray()
@@ -967,6 +980,25 @@ def sampler_loop():
 class StatusHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/docker/logs":
+            query = parse_qs(parsed.query)
+            name = str(query.get("container", [""])[0])
+            try:
+                body = read_container_log_text(name).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except PermissionError as error:
+                self.send_error(403, str(error))
+            except FileNotFoundError as error:
+                self.send_error(404, str(error))
+            except Exception as error:
+                self.send_error(500, str(error))
+            return
+
         if parsed.path == "/minecraft/logs":
             body = read_minecraft_log_text().encode("utf-8")
             self.send_response(200)

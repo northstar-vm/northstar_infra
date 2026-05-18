@@ -366,6 +366,29 @@
         justify-content: flex-start;
       }
 
+      .docker-log-row td {
+        padding: 0 8px 12px;
+        white-space: normal;
+      }
+
+      .docker-log-panel {
+        height: min(64vh, 760px);
+        min-height: 360px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--bg) 88%, #000 12%);
+      }
+
+      .docker-log-output {
+        margin: 0;
+        padding: 12px;
+        color: var(--fg);
+        font: 0.82rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
       button {
         min-height: 30px;
         padding: 5px 9px;
@@ -633,6 +656,11 @@
         pause: "Pause",
         unpause: "Unpause",
       };
+      let activeDockerLog = "";
+      let dockerLogText = "";
+      let dockerLogTimer = 0;
+      let dockerLogScrollTop = 0;
+      let dockerLogHasScrolled = false;
 
       const visibleActions = (container) => {
         if (container.state === "running") {
@@ -669,10 +697,96 @@
         }
       };
 
+      const loadDockerLogs = async () => {
+        if (!activeDockerLog) {
+          return;
+        }
+
+        const output = document.getElementById("docker-log-output");
+        try {
+          const response = await fetch(`/status/docker/logs?container=${encodeURIComponent(activeDockerLog)}`, { cache: "no-store" });
+          const text = await response.text();
+          if (!response.ok) {
+            throw new Error(text || `status ${response.status}`);
+          }
+          dockerLogText = text;
+          if (output) {
+            const panel = output.parentElement;
+            const shouldStick = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 24;
+            output.textContent = dockerLogText;
+            if (shouldStick) {
+              panel.scrollTop = panel.scrollHeight;
+              dockerLogScrollTop = panel.scrollTop;
+            }
+          }
+        } catch (error) {
+          if (output) {
+            output.textContent = `Logs unavailable for ${activeDockerLog}: ${error.message}`;
+          }
+        }
+      };
+
+      const stopDockerLogs = () => {
+        if (dockerLogTimer) {
+          clearInterval(dockerLogTimer);
+          dockerLogTimer = 0;
+        }
+      };
+
+      const toggleDockerLogs = (container) => {
+        if (activeDockerLog === container) {
+          activeDockerLog = "";
+          dockerLogText = "";
+          stopDockerLogs();
+          loadStatus();
+          return;
+        }
+
+        activeDockerLog = container;
+        dockerLogText = "Loading logs...";
+        dockerLogScrollTop = 0;
+        dockerLogHasScrolled = false;
+        stopDockerLogs();
+        loadStatus();
+        loadDockerLogs();
+        dockerLogTimer = setInterval(loadDockerLogs, 2000);
+      };
+
+      const appendDockerLogRow = (body) => {
+        const logRow = document.createElement("tr");
+        logRow.className = "docker-log-row";
+        const logCell = document.createElement("td");
+        logCell.colSpan = 7;
+        const panel = document.createElement("div");
+        panel.className = "docker-log-panel";
+        const output = document.createElement("pre");
+        output.className = "docker-log-output";
+        output.id = "docker-log-output";
+        output.textContent = dockerLogText || "Loading logs...";
+        panel.appendChild(output);
+        logCell.appendChild(panel);
+        logRow.appendChild(logCell);
+        body.appendChild(logRow);
+        panel.addEventListener("scroll", () => {
+          dockerLogScrollTop = panel.scrollTop;
+          dockerLogHasScrolled = true;
+        });
+        if (dockerLogHasScrolled) {
+          panel.scrollTop = dockerLogScrollTop;
+        } else {
+          panel.scrollTop = panel.scrollHeight;
+          dockerLogScrollTop = panel.scrollTop;
+        }
+      };
+
       const setDocker = (docker, historySummary = {}) => {
         const body = document.getElementById("docker-containers");
         const note = document.getElementById("docker-note");
         const count = document.getElementById("docker-count");
+        const existingLogPanel = document.querySelector(".docker-log-panel");
+        if (existingLogPanel && activeDockerLog) {
+          dockerLogScrollTop = existingLogPanel.scrollTop;
+        }
         note.classList.remove("docker-error");
         body.replaceChildren();
 
@@ -745,11 +859,19 @@
               button.addEventListener("click", () => runDockerAction(container.name, action, button));
               actions.appendChild(button);
             }
+            const logsButton = document.createElement("button");
+            logsButton.type = "button";
+            logsButton.textContent = activeDockerLog === container.name ? "Hide Logs" : "Logs";
+            logsButton.addEventListener("click", () => toggleDockerLogs(container.name));
+            actions.appendChild(logsButton);
           }
 
           actionCell.appendChild(actions);
           row.appendChild(actionCell);
           body.appendChild(row);
+          if (activeDockerLog === container.name) {
+            appendDockerLogRow(body);
+          }
         }
       };
 
