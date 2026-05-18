@@ -635,9 +635,6 @@
       };
 
       const visibleActions = (container) => {
-        if (container.protected) {
-          return [];
-        }
         if (container.state === "running") {
           return ["restart", "stop", "pause"];
         }
@@ -740,11 +737,6 @@
             stale.className = "hint";
             stale.textContent = "Waiting live";
             actions.appendChild(stale);
-          } else if (container.protected) {
-            const locked = document.createElement("span");
-            locked.className = "hint";
-            locked.textContent = "Protected";
-            actions.appendChild(locked);
           } else {
             for (const action of visibleActions(container)) {
               const button = document.createElement("button");

@@ -31,11 +31,6 @@ ALLOWED_CONTAINERS = {
     for name in os.environ.get("DOCKER_ALLOWED_CONTAINERS", "").split(",")
     if name.strip()
 }
-PROTECTED_CONTAINERS = {
-    name.strip()
-    for name in os.environ.get("DOCKER_PROTECTED_CONTAINERS", "").split(",")
-    if name.strip()
-}
 DOCKER_ACTIONS = {"start", "stop", "restart", "pause", "unpause"}
 LATEST_PAYLOAD = None
 LATEST_PAYLOAD_TS = 0
@@ -407,7 +402,6 @@ def read_container_stats():
                 "image": container.get("Image", ""),
                 "state": state,
                 "status": container.get("Status", ""),
-                "protected": name in PROTECTED_CONTAINERS,
                 "cpu_percent": calculate_cpu_percent(stats_payload),
                 "memory_used_mib": bytes_to_mib(memory_used),
                 "memory_limit_mib": bytes_to_mib(memory_limit),
@@ -425,8 +419,6 @@ def read_container_stats():
 def perform_container_action(name, action):
     if action not in DOCKER_ACTIONS:
         raise PermissionError("unsupported action")
-    if name in PROTECTED_CONTAINERS:
-        raise PermissionError("container is protected")
     if not is_allowed_container(name):
         raise PermissionError("container is not allowlisted")
 
@@ -909,7 +901,6 @@ def read_latest_container_history():
             "name": row[2],
             "state": row[3],
             "status": f"last sampled at {time.strftime('%H:%M:%S', time.localtime(row[0]))}",
-            "protected": row[2] in PROTECTED_CONTAINERS,
             "cpu_percent": row[4],
             "memory_used_mib": row[5],
             "memory_limit_mib": row[6],
