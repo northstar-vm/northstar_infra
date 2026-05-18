@@ -412,6 +412,26 @@
         opacity: 0.5;
       }
 
+      .button-start {
+        border-color: color-mix(in srgb, #1f8f4d 70%, var(--line));
+        background: color-mix(in srgb, #1f8f4d 18%, var(--panel));
+      }
+
+      .button-stop {
+        border-color: color-mix(in srgb, #b83333 72%, var(--line));
+        background: color-mix(in srgb, #b83333 18%, var(--panel));
+      }
+
+      .button-restart {
+        border-color: color-mix(in srgb, #b7791f 72%, var(--line));
+        background: color-mix(in srgb, #b7791f 20%, var(--panel));
+      }
+
+      .button-logs {
+        border-color: color-mix(in srgb, var(--accent) 72%, var(--line));
+        background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+      }
+
       .docker-error {
         color: var(--accent-2);
       }
@@ -866,6 +886,7 @@
             for (const action of visibleActions(container)) {
               const button = document.createElement("button");
               button.type = "button";
+              button.className = `button-${action === "unpause" ? "start" : action === "pause" ? "restart" : action}`;
               button.textContent = actionLabel[action] || action;
               button.addEventListener("click", () => runDockerAction(container.name, action, button));
               actions.appendChild(button);
@@ -878,6 +899,7 @@
             }
             const logsButton = document.createElement("button");
             logsButton.type = "button";
+            logsButton.className = "button-logs";
             logsButton.textContent = activeDockerLog === container.name ? "Hide Logs" : "Logs";
             logsButton.addEventListener("click", () => toggleDockerLogs(container.name));
             actions.appendChild(logsButton);
