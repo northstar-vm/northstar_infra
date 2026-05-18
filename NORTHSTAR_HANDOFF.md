@@ -193,6 +193,7 @@ northstar-minecraft     itzg/minecraft-server:java25
 northstar-status        python:3.13-alpine
 quizzy-backend-1        quizzy-backend
 quizzy-frontend-1       quizzy-frontend
+quizzy-mongo-1          mongodb/mongodb-atlas-local:latest
 quizzy-web-1            nginx:1.27-alpine
 ```
 
@@ -696,27 +697,13 @@ Recommended client-side performance stack already discussed:
 
 Iris is optional and mainly for shaders; it is not needed for performance.
 
-## MongoDB Atlas
+## MongoDB
 
-MongoDB is hosted on Atlas, not on the VM.
+Quizzy production MongoDB runs inside the IndividualTeacher app Compose stack as `quizzy-mongo-1`.
 
-Atlas project: `Quizzy`.
+The infra repo owns only the shared network and Caddy route. Do not add a Caddy route, Cloudflare DNS record, or Oracle public ingress rule for MongoDB.
 
-Cluster: `Cluster0`, free tier.
-
-Current historical IP access had:
-
-```text
-0.0.0.0/0
-```
-
-This is convenient but not secure. Recommended final rule:
-
-```text
-130.61.33.233/32
-```
-
-Use a dedicated MongoDB database user for the VM deployment. Do not commit MongoDB URI.
+Atlas project `Quizzy` / cluster `Cluster0` may remain as rollback or migration history, but new production embeddings should go to the VM-local MongoDB.
 
 ## Google OAuth
 
@@ -921,6 +908,6 @@ Expected:
 - Do not commit private SSH keys.
 - Do not commit real `.env` files.
 - Do not expose Docker socket publicly.
-- Do not remove `0.0.0.0/0` from Atlas until VM-specific Atlas access is verified, but remove it once verified.
+- Do not expose Quizzy MongoDB publicly through Caddy, Cloudflare, or Oracle ingress.
 - Do not delete `/opt/northstar/proxy`; archive it first.
 - Do not broaden File Browser back to the whole VM unless you intentionally accept the extra risk.

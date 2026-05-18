@@ -2,7 +2,7 @@
 
 These steps assume you are SSH'd into the VM as `ubuntu`.
 
-This repo should become the separate private GitHub repo `northstar-infra`. Do not place these files inside `/opt/northstar/apps/quizzy` or the `cruetto/IndividualTeacher` app repo.
+This repo is the separate private GitHub repo for northstar VM infrastructure. Do not place these files inside `/opt/northstar/apps/quizzy` or the `cruetto/IndividualTeacher` app repo.
 
 ## CI/CD
 
@@ -351,12 +351,12 @@ Set:
 CADDY_EMAIL=your-real-email@example.com
 ADMIN_USERNAME=vallutto
 ADMIN_PASSWORD_HASH='<hash from caddy hash-password>'
-QUIZZY_UPSTREAM=host.docker.internal:8080
+QUIZZY_UPSTREAM=quizzy-web-1:80
 ```
 
 Keep single quotes around `ADMIN_PASSWORD_HASH` so Compose does not treat the bcrypt `$` characters as environment-variable syntax.
 
-If Quizzy is not reachable through `host.docker.internal:8080` on the VM, set `QUIZZY_UPSTREAM` to the current working upstream from the old Caddyfile before replacing it.
+Quizzy owns the `quizzy-web-1` app proxy in the IndividualTeacher repo. Caddy reaches it over the shared external Docker network `northstar_web`.
 
 ## 7. Start or Reload Caddy
 
@@ -413,14 +413,13 @@ Keep `mc` DNS-only because Minecraft uses raw TCP on `25565`, not HTTPS through 
 
 For two-factor protection on the admin portal, use Cloudflare Access in front of `northstar.attentionisallineed.xyz` with an allow policy for your email and one-time PIN login. Caddy Basic Auth stays as the VM-side fallback; Cloudflare Access adds the second factor before traffic reaches Caddy.
 
-## 9. Atlas and OAuth Checks
+## 9. Quizzy Database and OAuth Checks
 
-MongoDB Atlas:
+MongoDB for Quizzy:
 
-- Confirm the backend can connect from the VM.
-- Keep `130.61.33.233/32` in Atlas network access.
-- Remove temporary `0.0.0.0/0` network access.
-- Use the dedicated northstar DB user in VM-only app environment files.
+- Production MongoDB runs inside the IndividualTeacher app Compose stack as `quizzy-mongo-1`.
+- Do not create a Caddy route, Cloudflare DNS record, or Oracle public ingress rule for MongoDB.
+- Atlas may remain as rollback/migration history only.
 
 Google OAuth for Quizzy:
 

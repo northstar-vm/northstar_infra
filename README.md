@@ -32,12 +32,12 @@ cruetto/IndividualTeacher
 
 Current app details:
 
-- Compose services: `backend`, `frontend`, `web`
+- Compose services: `backend`, `frontend`, `mongo`, `web`
 - Backend runs in Docker on port `5000`
 - Frontend runs in Docker/nginx on port `80`
-- App `web`/nginx exposes server port `8080`
-- MongoDB is MongoDB Atlas, not hosted on this VM
-- Caddy already proxies `quizzy.attentionisallineed.xyz` to the working app web service
+- App `web`/nginx is `quizzy-web-1` and joins the shared `northstar_web` network
+- MongoDB runs in the Quizzy app stack as `quizzy-mongo-1`, bound to `127.0.0.1:27017` for maintenance only
+- Caddy proxies `quizzy.attentionisallineed.xyz` to `quizzy-web-1:80`
 
 Keep that working Caddy route intact when adding the northstar admin route.
 
@@ -222,11 +222,11 @@ Keep `mc.attentionisallineed.xyz` DNS-only because Cloudflare's normal orange-cl
 
 ## External Services
 
-MongoDB Atlas:
+MongoDB for Quizzy:
 
-- Restrict Atlas IP access to `130.61.33.233/32` after confirming the VM can connect.
-- Remove temporary `0.0.0.0/0` access once the VM-specific rule works.
-- Use a dedicated DB user for the northstar deployment.
+- Production MongoDB runs inside the Quizzy app repo Compose stack.
+- It is not routed through Caddy, Cloudflare, or Oracle public ingress.
+- Atlas may remain only as rollback/migration history; do not send new production embeddings there after VM-local MongoDB is verified.
 
 Google OAuth for Quizzy:
 
