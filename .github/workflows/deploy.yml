@@ -16,6 +16,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: northstar_vm
     steps:
       - name: Deploy infra on Northstar VM
         uses: appleboy/ssh-action@v1.0.3
