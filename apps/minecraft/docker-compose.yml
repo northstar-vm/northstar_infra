@@ -17,6 +17,8 @@ services:
       CREATE_CONSOLE_IN_PIPE: "TRUE"
       OPS: "${OPS:-}"
       WHITELIST: "${WHITELIST:-}"
+      UID: "${MINECRAFT_UID:-1000}"
+      GID: "${MINECRAFT_GID:-1000}"
     volumes:
       - /opt/northstar/apps/minecraft/data:/data
     networks:
