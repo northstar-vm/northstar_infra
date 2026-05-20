@@ -194,6 +194,14 @@ mc.attentionisallineed.xyz
 
 Minecraft uses raw TCP on port `25565`, not HTTP/HTTPS, so it does not go through Caddy.
 
+Minecraft resource packs are served over HTTPS from:
+
+```text
+https://mc.attentionisallineed.xyz/resourcepacks/northstar-resource-pack.zip
+```
+
+The current server pack is a merged pack layered as `spook's tweaks` base, `Vanilla Experience+`, then `Rethoughted GUI` on top. Keep the resulting zip on the VM at `/opt/northstar/resourcepacks/northstar-resource-pack.zip`; update `RESOURCE_PACK_SHA1` in `apps/minecraft/docker-compose.yml` whenever the zip changes.
+
 ## Secrets
 
 Do not commit real passwords, Caddy hashes, File Browser databases, status SQLite databases, or runtime volumes.

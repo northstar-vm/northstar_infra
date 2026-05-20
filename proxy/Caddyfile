@@ -19,6 +19,15 @@ cv.attentionisallineed.xyz {
 	reverse_proxy cv-web:80
 }
 
+mc.attentionisallineed.xyz {
+	handle /resourcepacks/* {
+		root * /srv
+		file_server
+	}
+
+	respond "Northstar Minecraft server. Connect in Minecraft Java: mc.attentionisallineed.xyz" 200
+}
+
 northstar.attentionisallineed.xyz {
 	basic_auth {
 		{$ADMIN_USERNAME} {$ADMIN_PASSWORD_HASH}

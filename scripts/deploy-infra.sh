@@ -21,9 +21,9 @@ export NORTHSTAR_FILE_UID NORTHSTAR_FILE_GID
 MINECRAFT_UID="${MINECRAFT_UID:-1000}"
 MINECRAFT_GID="${MINECRAFT_GID:-1000}"
 
-sudo mkdir -p /opt/northstar/admin/files /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config /opt/northstar/admin/status-data /opt/northstar/backups/minecraft /opt/northstar/apps
+sudo mkdir -p /opt/northstar/admin/files /opt/northstar/admin/filebrowser/database /opt/northstar/admin/filebrowser/config /opt/northstar/admin/status-data /opt/northstar/backups/minecraft /opt/northstar/apps /opt/northstar/resourcepacks
 sudo chown -R "$NORTHSTAR_FILE_UID:$NORTHSTAR_FILE_GID" /opt/northstar/admin/files /opt/northstar/admin/filebrowser
-sudo chown -R ubuntu:ubuntu /opt/northstar/backups /opt/northstar/apps
+sudo chown -R ubuntu:ubuntu /opt/northstar/backups /opt/northstar/apps /opt/northstar/resourcepacks
 sudo chown -R root:root /opt/northstar/admin/status-data
 sudo chmod 775 /opt/northstar/admin/files
 sudo chmod -R u+rwX,g+rwX /opt/northstar/admin/files

@@ -17,6 +17,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - ../admin/portal:/srv/northstar-admin:ro
+      - /opt/northstar/resourcepacks:/srv/resourcepacks:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
