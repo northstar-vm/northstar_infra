@@ -173,6 +173,7 @@ This server currently uses `ONLINE_MODE=FALSE`. Before opening it to players, ke
 - `SkinsRestorer.jar` for skins in offline mode.
 - `QuickSortX-1.5.jar` for container sorting.
 - `TreeFeller-1.30.1.jar` for safe tree felling.
+- `logblock-1.0.5.jar` for block placement/break history and anti-grief inspection.
 
 SimpleWhitelist uses the normal whitelist command name:
 

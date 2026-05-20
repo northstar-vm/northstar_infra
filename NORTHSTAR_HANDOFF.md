@@ -343,7 +343,7 @@ Important runtime choices:
 - `online-mode=false`; AuthMe handles player registration/login.
 - SimpleWhitelist handles name-based whitelist through `/whitelist` commands.
 - MOTD is managed directly in compose as a YAML multiline value; the VM-only `.env` should not set `SERVER_NAME`.
-- Active plugins: AuthMe, SimpleWhitelist, SkinsRestorer, QuickSortX, TreeFeller.
+- Active plugins: AuthMe, SimpleWhitelist, SkinsRestorer, QuickSortX, TreeFeller, LogBlock.
 - Server resource pack URL: `https://mc.attentionisallineed.xyz/resourcepacks/northstar-resource-pack.zip`.
 - Resource pack layer order: `Rethoughted GUI` over `Vanilla Experience+` over `spook's tweaks`.
 - RCON is available inside the container for `docker exec ... rcon-cli`, but port `25575` is not published to the internet.

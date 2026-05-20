@@ -145,6 +145,7 @@ Current gameplay/QoL plugins:
 - SkinsRestorer restores premium-style skins while the server runs in offline mode.
 - QuickSortX provides manual and optional automatic container sorting.
 - TreeFeller lets axes fell valid trees while using tree detection settings that avoid player-built structures.
+- LogBlock records block placement/break history for anti-grief inspection.
 
 The compose file sets the public server-list `MOTD` directly as a YAML multiline value. Do not also set `SERVER_NAME` in the VM-only `.env`, otherwise it can reintroduce escaping confusion.
 
