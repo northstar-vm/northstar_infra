@@ -73,7 +73,7 @@ Deploy target:
 
 The admin domain is protected with Caddy Basic Auth. Caddy routes are tracked in `proxy/Caddyfile`, while secrets live in the ignored VM-only `proxy/.env`. File Browser relies on the Caddy login only.
 
-The portal home page shows VM CPU/RAM/disk, Docker container CPU/RAM/disk stats with safe start/stop/restart/pause controls, and Minecraft Docker logs/player history plus a narrow Minecraft command console. Player profiles store nickname, UUID when available, first seen, last seen, join count, leave count, and last action. The status API stores 10 days of samples in SQLite under `/opt/northstar/admin/status-data` and is not published directly to the internet.
+The portal home page shows VM CPU/RAM/disk, Docker container CPU/RAM/disk stats with safe start/stop/restart/pause controls, Minecraft backup count/size with a `Backup now` button, and Minecraft Docker logs/player history plus a narrow Minecraft command console. Player profiles store nickname, UUID when available, first seen, last seen, join count, leave count, and last action. The status API stores 10 days of samples in SQLite under `/opt/northstar/admin/status-data` and is not published directly to the internet.
 
 Portainer has been removed. Use the built-in Docker panel for common actions, and SSH for anything dangerous or unusual.
 
@@ -175,6 +175,8 @@ Backups are written to:
 ```text
 /opt/northstar/backups/minecraft
 ```
+
+The admin portal also shows the Minecraft backup summary: total stored size, backup count, recent files, dates, and per-file MB. As of 2026-05-20, the panel showed 11 backup files stored using about 2.3 GiB total, with recent archives around 217-221 MiB each.
 
 To run backups every 8 hours, install this cron entry on the VM with `crontab -e`:
 

@@ -287,7 +287,7 @@ docker compose up -d
 
 File Browser is configured with no internal login and relies on Caddy Basic Auth for the northstar admin domain. Use `vallutto` for the Caddy Basic Auth username in `/opt/northstar/infra/proxy/.env`.
 
-The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, and Minecraft Docker logs. It stores 10 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers, expandable live Docker logs, and a narrow Minecraft command console.
+The admin status service reads host CPU, RAM, root disk usage, Docker container stats, Minecraft's normal server-list status, Minecraft backup files, and Minecraft Docker logs. It stores 10 days of VM/container/Minecraft samples in SQLite under `/opt/northstar/admin/status-data`. The portal renders Docker controls for allowlisted containers, a backup summary with a `Backup now` button, expandable live Docker logs, and a narrow Minecraft command console.
 Player profiles in SQLite store nickname, UUID when available from logs, first seen, last seen, join count, leave count, and last action.
 
 Check the status service:
@@ -469,6 +469,7 @@ Expected security layers:
 - Optional Cloudflare Access asks for email OTP before Caddy if configured.
 - File Browser opens at `/files/` after Caddy authentication and does not ask for a second login.
 - The portal Docker panel shows allowlisted container stats and common controls.
+- The portal backup panel shows Minecraft backup count, total size, recent files, dates, per-file MB, and a manual `Backup now` action.
 - Minecraft accepts offline-mode clients because `ONLINE_MODE=FALSE`; AuthMe and SimpleWhitelist are the required safety layer.
 
 ## 12. CI/CD Setup

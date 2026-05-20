@@ -398,6 +398,8 @@ Backup behavior:
 - Script tells the server `save-off`, `save-all flush`, archives the data folder, then `save-on`.
 - Script uses `sudo tar` because some container-owned files are not readable by plain `ubuntu`.
 - Default retention is 7 days.
+- The admin portal has a Backups panel showing total stored size, backup count, recent archive filenames, dates, per-file MB, and a `Backup now` button.
+- Observed on 2026-05-20: 11 backup files stored, about 2.3 GiB total, with recent archives around 217-221 MiB each.
 - Recommended cron schedule is every 8 hours, about 21 backups total:
 
 ```cron
@@ -439,7 +441,7 @@ Routes:
 ```text
 /          static admin portal
 /files/    File Browser
-/status/api private JSON status for portal CPU/RAM/disk bars, Docker controls, and Minecraft panel
+/status/api private JSON status for portal CPU/RAM/disk bars, Docker controls, Minecraft backups, and Minecraft panel
 ```
 
 Admin compose:
@@ -451,7 +453,7 @@ docker compose logs --tail=80 filebrowser
 docker compose logs --tail=40 status
 ```
 
-The portal homepage shows VM CPU/RAM/disk usage, Docker container stats, allowlisted Docker actions, expandable live Docker logs, and a Minecraft panel with player count, persisted player history, Docker logs, and a command console. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
+The portal homepage shows VM CPU/RAM/disk usage, Docker container stats, allowlisted Docker actions, a Minecraft backups panel, expandable live Docker logs, and a Minecraft panel with player count, persisted player history, Docker logs, and a command console. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
 Player profiles in SQLite store nickname, UUID when available from logs, first seen, last seen, join count, leave count, and last action.
 
 Status service design:
@@ -459,6 +461,7 @@ Status service design:
 - Mounts `/` and `/proc` read-only for VM stats.
 - Mounts `/var/run/docker.sock` for Docker stats and allowlisted start/stop/restart/pause actions.
 - Serves full allowlisted Docker logs to the portal at `/status/docker/logs?container=...`.
+- Reads `/opt/northstar/backups/minecraft` through the `/backups/minecraft` mount and exposes backup summary plus manual backup creation at `/status/minecraft/backup`.
 - Stores 10 days of SQLite history in `/opt/northstar/admin/status-data/northstar.db`.
 - Reads Minecraft raw logs through Docker logs for `northstar-minecraft`.
 - Sends Minecraft panel commands through `docker exec ... mc-send-to-console`, with `rcon-cli` fallback, never through a shell.
