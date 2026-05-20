@@ -719,7 +719,7 @@
           return fallback || "-";
         }
         const date = new Date(Number(timestamp) * 1000);
-        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+        return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour12: false })}`;
       };
 
       const formatDate = (timestamp) => {
@@ -733,7 +733,7 @@
         if (!timestamp) {
           return "-";
         }
-        return new Date(Number(timestamp) * 1000).toLocaleTimeString();
+        return new Date(Number(timestamp) * 1000).toLocaleTimeString([], { hour12: false });
       };
 
       const actionLabel = {
