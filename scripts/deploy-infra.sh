@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+LOCK_FILE="/opt/northstar/deploy-infra.lock"
 INFRA_DIR="/opt/northstar/infra"
+
+exec 9>"$LOCK_FILE"
+if ! flock -w 600 9; then
+  echo "Another deploy-infra.sh run is still active after waiting 10 minutes." >&2
+  exit 1
+fi
 
 cd "$INFRA_DIR"
 git pull --ff-only
