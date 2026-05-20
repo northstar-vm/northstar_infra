@@ -1026,7 +1026,7 @@ def read_latest_container_history():
     ]
 
 
-def read_backup_summary(limit=8):
+def read_backup_summary():
     try:
         entries = []
         total_bytes = 0
@@ -1053,7 +1053,7 @@ def read_backup_summary(limit=8):
         entries.sort(key=lambda item: item["mtime"], reverse=True)
         return {
             "available": True,
-            "files": entries[:limit],
+            "files": entries,
             "count": len(entries),
             "total_mib": round(total_bytes / (1024 ** 2), 1),
         }
