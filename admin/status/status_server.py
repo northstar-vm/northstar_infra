@@ -1295,6 +1295,14 @@ class StatusHandler(BaseHTTPRequestHandler):
                 log_event(f"minecraft log stream failed: {error}")
             return
 
+        if parsed.path == "/minecraft/health":
+            status = query_minecraft_status()
+            self.send_json({
+                "status": status,
+                "health": summarize_minecraft_health(status),
+            })
+            return
+
         if parsed.path == "/history":
             query = parse_qs(parsed.query)
             limit = min(int(query.get("limit", ["120"])[0]), 500)

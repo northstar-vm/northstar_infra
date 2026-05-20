@@ -1058,14 +1058,9 @@
         });
       };
 
-      const setMinecraft = (minecraft) => {
+      const setMinecraftHealth = (minecraft) => {
         const status = minecraft.status || {};
         const health = minecraft.health || {};
-        const players = status.sample || [];
-        const logs = minecraft.logs || [];
-        const playerHistory = minecraft.players || [];
-        const playersNode = document.getElementById("minecraft-players");
-        const historyNode = document.getElementById("minecraft-player-history");
         const lamp = document.getElementById("minecraft-lamp");
         const healthState = ["online", "starting", "error"].includes(health.state) ? health.state : "offline";
 
@@ -1079,6 +1074,17 @@
               ? `${status.version}, ${status.online} player${status.online === 1 ? "" : "s"} online`
               : health.detail || "Server status unavailable"
           }`;
+      };
+
+      const setMinecraft = (minecraft) => {
+        const status = minecraft.status || {};
+        const players = status.sample || [];
+        const logs = minecraft.logs || [];
+        const playerHistory = minecraft.players || [];
+        const playersNode = document.getElementById("minecraft-players");
+        const historyNode = document.getElementById("minecraft-player-history");
+
+        setMinecraftHealth(minecraft);
 
         playersNode.replaceChildren();
         if (players.length) {
@@ -1121,6 +1127,21 @@
 
         if (!minecraftLogConnected) {
           renderMinecraftLogs("replace", logs);
+        }
+      };
+
+      const loadMinecraftHealth = async () => {
+        try {
+          const response = await fetch("/status/minecraft/health", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`status ${response.status}`);
+          }
+          setMinecraftHealth(await response.json());
+        } catch (error) {
+          setMinecraftHealth({
+            status: { reachable: false },
+            health: { state: "offline", label: "Status unavailable", detail: error.message },
+          });
         }
       };
 
@@ -1294,6 +1315,7 @@
       document.getElementById("backup-now").addEventListener("click", runBackupNow);
       startMinecraftLogStream();
       loadPersistedHistory().then(loadStatus);
+      setInterval(loadMinecraftHealth, 2500);
       setInterval(loadStatus, 30000);
     </script>
   </body>
