@@ -170,6 +170,9 @@ This server currently uses `ONLINE_MODE=FALSE`. Before opening it to players, ke
 
 - `AuthMe-6.0.0-Paper.jar` for `/register` and `/login`.
 - `SimpleWhitelist.jar` for name-based whitelist commands.
+- `SkinsRestorer.jar` for skins in offline mode.
+- `QuickSortX-1.5.jar` for container sorting.
+- `TreeFeller-1.30.1.jar` for safe tree felling.
 
 SimpleWhitelist uses the normal whitelist command name:
 
@@ -180,6 +183,8 @@ docker exec -i northstar-minecraft rcon-cli "whitelist list"
 ```
 
 The compose file sets the public server-list `MOTD` directly as a YAML multiline value. Do not set `SERVER_NAME` in the VM-only `.env`.
+
+The server resource pack is a merged zip served from `/opt/northstar/resourcepacks/northstar-resource-pack.zip` at `https://mc.attentionisallineed.xyz/resourcepacks/northstar-resource-pack.zip`. Its layer order is `Rethoughted GUI` over `Vanilla Experience+` over `spook's tweaks`.
 
 Start the server:
 

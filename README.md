@@ -140,6 +140,12 @@ Current offline-mode safety layer:
 - SimpleWhitelist allows only configured player names.
 - Vanilla `white-list` should stay off in `server.properties`; SimpleWhitelist owns the name-based whitelist.
 
+Current gameplay/QoL plugins:
+
+- SkinsRestorer restores premium-style skins while the server runs in offline mode.
+- QuickSortX provides manual and optional automatic container sorting.
+- TreeFeller lets axes fell valid trees while using tree detection settings that avoid player-built structures.
+
 The compose file sets the public server-list `MOTD` directly as a YAML multiline value. Do not also set `SERVER_NAME` in the VM-only `.env`, otherwise it can reintroduce escaping confusion.
 
 During first setup, the compose file uses `restart: "no"` so configuration errors do not create a restart loop. After the server is stable, switch it back to `restart: unless-stopped` if you want it to auto-start after VM or Docker restarts.
@@ -200,7 +206,7 @@ Minecraft resource packs are served over HTTPS from:
 https://mc.attentionisallineed.xyz/resourcepacks/northstar-resource-pack.zip
 ```
 
-The current server pack is a merged pack layered as `spook's tweaks` base, `Vanilla Experience+`, then `Rethoughted GUI` on top. Keep the resulting zip on the VM at `/opt/northstar/resourcepacks/northstar-resource-pack.zip`; update `RESOURCE_PACK_SHA1` in `apps/minecraft/docker-compose.yml` whenever the zip changes.
+The current server pack is a merged pack layered bottom-to-top as `spook's tweaks`, `Vanilla Experience+`, then `Rethoughted GUI`. Keep the resulting zip on the VM at `/opt/northstar/resourcepacks/northstar-resource-pack.zip`; update `RESOURCE_PACK_SHA1` in `apps/minecraft/docker-compose.yml` whenever the zip changes.
 
 ## Secrets
 
