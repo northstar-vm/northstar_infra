@@ -563,7 +563,7 @@ def query_minecraft_status():
         }
 
 
-def read_minecraft_log_text(tail=500, since=None, timestamps=False):
+def read_minecraft_log_text(tail=500, since=None, timestamps=False, empty_message=True):
     try:
         container = find_container_by_name(MINECRAFT_CONTAINER)
         if not container:
@@ -573,7 +573,9 @@ def read_minecraft_log_text(tail=500, since=None, timestamps=False):
         if since is not None:
             path += f"&since={int(since)}"
         text = docker_client.request_text("GET", path)
-        return text if text.strip() else "Minecraft Docker logs are empty.\n"
+        if text.strip():
+            return text
+        return "Minecraft Docker logs are empty.\n" if empty_message else ""
     except Exception as error:
         return f"Minecraft Docker logs unavailable: {error}\n"
 
@@ -1156,6 +1158,7 @@ def read_stream_minecraft_lines(tail=None, since=None):
         tail=tail or MINECRAFT_LOG_STREAM_TAIL,
         since=since,
         timestamps=False,
+        empty_message=False,
     )
     return [line.rstrip() for line in text.splitlines() if line.rstrip()]
 
