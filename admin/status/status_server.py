@@ -25,6 +25,7 @@ METRICS_SAMPLE_SECONDS = int(os.environ.get("METRICS_SAMPLE_SECONDS", "60"))
 MEMINFO_PATH = "/host/proc/meminfo"
 MINECRAFT_HOST = os.environ.get("MINECRAFT_HOST", "northstar-minecraft")
 MINECRAFT_CONTAINER = os.environ.get("MINECRAFT_CONTAINER", "northstar-minecraft")
+MINECRAFT_EXEC_USER = os.environ.get("MINECRAFT_EXEC_USER", "1000")
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
 MINECRAFT_LOG_RECENT_SECONDS = int(os.environ.get("MINECRAFT_LOG_RECENT_SECONDS", "1800"))
 MINECRAFT_LOG_RECENT_TAIL = int(os.environ.get("MINECRAFT_LOG_RECENT_TAIL", "200"))
@@ -690,7 +691,9 @@ def run_minecraft_command(command):
         raise RuntimeError(f"Minecraft container is {container.get('State', 'unknown')}")
 
     try:
-        output = run_container_exec(container["Id"], ["mc-send-to-console", command])
+        output = run_container_exec(container["Id"], ["mc-send-to-console", command], user=MINECRAFT_EXEC_USER)
+        if "Exec needs to be run with user ID" in output:
+            raise RuntimeError(output.strip())
     except Exception:
         output = run_container_exec(container["Id"], ["rcon-cli", command])
     return {
@@ -700,13 +703,15 @@ def run_minecraft_command(command):
     }
 
 
-def run_container_exec(container_id, command):
+def run_container_exec(container_id, command, user=None):
     exec_payload = {
         "AttachStdout": True,
         "AttachStderr": True,
         "Tty": False,
         "Cmd": command,
     }
+    if user:
+        exec_payload["User"] = str(user)
     exec_result = docker_client.request("POST", f"/containers/{quote(container_id)}/exec", exec_payload)
     exec_id = exec_result.get("Id")
     if not exec_id:
