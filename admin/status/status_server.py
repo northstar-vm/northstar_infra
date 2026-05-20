@@ -144,7 +144,9 @@ def init_db():
               last_seen_time TEXT NOT NULL,
               last_action TEXT NOT NULL,
               joins INTEGER NOT NULL DEFAULT 0,
-              leaves INTEGER NOT NULL DEFAULT 0
+              leaves INTEGER NOT NULL DEFAULT 0,
+              active_since_ts INTEGER,
+              playtime_seconds INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_player_profiles_last_seen ON player_profiles(last_seen_ts);
 
@@ -155,6 +157,11 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_minecraft_log_lines_observed ON minecraft_log_lines(observed_ts);
             """
         )
+        columns = {row[1] for row in db.execute("PRAGMA table_info(player_profiles)").fetchall()}
+        if "active_since_ts" not in columns:
+            db.execute("ALTER TABLE player_profiles ADD COLUMN active_since_ts INTEGER")
+        if "playtime_seconds" not in columns:
+            db.execute("ALTER TABLE player_profiles ADD COLUMN playtime_seconds INTEGER NOT NULL DEFAULT 0")
 
 
 def prune_history():
@@ -794,9 +801,16 @@ def store_player_events():
                 continue
 
             player = event["player"]
-            existing = db.execute("SELECT last_action FROM player_profiles WHERE player = ?", (player,)).fetchone()
+            existing = db.execute("SELECT last_action, active_since_ts FROM player_profiles WHERE player = ?", (player,)).fetchone()
             join_delta = 1 if event["action"] == "joined" else 0
             leave_delta = 1 if event["action"] == "left" else 0
+            starts_session = event["action"] in {"joined", "connected", "authenticated"}
+            ends_session = event["action"] == "left"
+            active_since = existing[1] if existing else None
+            playtime_delta = max(0, event_ts - active_since) if ends_session and active_since else 0
+            next_active_since = event_ts if starts_session and not active_since else active_since
+            if ends_session:
+                next_active_since = None
             if existing:
                 db.execute(
                     """
@@ -808,17 +822,31 @@ def store_player_events():
                         last_seen_time = ?,
                         last_action = ?,
                         joins = joins + ?,
-                        leaves = leaves + ?
+                        leaves = leaves + ?,
+                        active_since_ts = ?,
+                        playtime_seconds = playtime_seconds + ?
                     WHERE player = ?
                     """,
-                    (event.get("uuid"), event_ts, event_time, event_ts, event_time, event["action"], join_delta, leave_delta, player),
+                    (
+                        event.get("uuid"),
+                        event_ts,
+                        event_time,
+                        event_ts,
+                        event_time,
+                        event["action"],
+                        join_delta,
+                        leave_delta,
+                        next_active_since,
+                        playtime_delta,
+                        player,
+                    ),
                 )
             else:
                 db.execute(
                     """
                     INSERT INTO player_profiles
-                    (player, uuid, first_seen_ts, first_seen_time, last_seen_ts, last_seen_time, last_action, joins, leaves)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (player, uuid, first_seen_ts, first_seen_time, last_seen_ts, last_seen_time, last_action, joins, leaves, active_since_ts, playtime_seconds)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         player,
@@ -830,6 +858,8 @@ def store_player_events():
                         event["action"],
                         join_delta,
                         leave_delta,
+                        event_ts if starts_session else None,
+                        0,
                     ),
                 )
 
@@ -847,7 +877,9 @@ def read_persisted_player_history():
               last_seen_time,
               last_action,
               joins,
-              leaves
+              leaves,
+              active_since_ts,
+              playtime_seconds
             FROM player_profiles
             ORDER BY last_seen_ts DESC, player ASC
             LIMIT 80
@@ -864,6 +896,8 @@ def read_persisted_player_history():
             "last_action": row[6],
             "joins": row[7],
             "leaves": row[8],
+            "active_since_ts": row[9],
+            "playtime_seconds": row[10] + (max(0, now_ts() - row[9]) if row[9] else 0),
         }
         for row in rows
     ]
