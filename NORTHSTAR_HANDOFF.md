@@ -342,7 +342,7 @@ Important runtime choices:
 - Port: `25565/tcp`, published directly by Docker.
 - `online-mode=false`; AuthMe handles player registration/login.
 - SimpleWhitelist handles name-based whitelist through `/whitelist` commands.
-- MOTD is managed directly in `/opt/northstar/apps/minecraft/data/server.properties`; compose intentionally does not set `MOTD`.
+- MOTD is managed directly in compose as a YAML multiline value; the VM-only `.env` should not set `SERVER_NAME`.
 - RCON is available inside the container for `docker exec ... rcon-cli`, but port `25575` is not published to the internet.
 - Current compose uses `restart: "no"` to avoid restart loops during setup/debugging. Once stable, it can be changed to `restart: unless-stopped`.
 

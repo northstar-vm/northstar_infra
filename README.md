@@ -140,7 +140,7 @@ Current offline-mode safety layer:
 - SimpleWhitelist allows only configured player names.
 - Vanilla `white-list` should stay off in `server.properties`; SimpleWhitelist owns the name-based whitelist.
 
-The compose file intentionally does not set `MOTD`. Keep the public server-list text in `/opt/northstar/apps/minecraft/data/server.properties` so restarts do not double-escape formatting like `\n`.
+The compose file sets the public server-list `MOTD` directly as a YAML multiline value. Do not also set `SERVER_NAME` in the VM-only `.env`, otherwise it can reintroduce escaping confusion.
 
 During first setup, the compose file uses `restart: "no"` so configuration errors do not create a restart loop. After the server is stable, switch it back to `restart: unless-stopped` if you want it to auto-start after VM or Docker restarts.
 

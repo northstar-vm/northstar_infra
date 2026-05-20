@@ -10,6 +10,9 @@ services:
       TYPE: "PAPER"
       VERSION: "${MINECRAFT_VERSION:-LATEST}"
       MEMORY: "${MEMORY:-12G}"
+      MOTD: |-
+        §b✦ Northstar§r
+        §7Скиньте ник, чтобы добавиться в Whitelist
       MODE: "survival"
       DIFFICULTY: "normal"
       ONLINE_MODE: "FALSE"
