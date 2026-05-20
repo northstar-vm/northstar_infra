@@ -10,7 +10,6 @@ services:
       TYPE: "PAPER"
       VERSION: "${MINECRAFT_VERSION:-LATEST}"
       MEMORY: "${MEMORY:-12G}"
-      MOTD: "${SERVER_NAME:-Northstar}"
       MODE: "survival"
       DIFFICULTY: "normal"
       ONLINE_MODE: "FALSE"

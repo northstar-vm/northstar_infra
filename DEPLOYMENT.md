@@ -179,6 +179,8 @@ docker exec -i northstar-minecraft rcon-cli "whitelist add Cruetto"
 docker exec -i northstar-minecraft rcon-cli "whitelist list"
 ```
 
+The compose file intentionally does not set `MOTD`. Edit `motd=` directly in `/opt/northstar/apps/minecraft/data/server.properties` for server-list formatting, then restart Minecraft.
+
 Start the server:
 
 ```bash
