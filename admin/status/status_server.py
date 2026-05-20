@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from collections import deque
 from datetime import datetime
 import json
 import os
@@ -27,12 +28,17 @@ MINECRAFT_CONTAINER = os.environ.get("MINECRAFT_CONTAINER", "northstar-minecraft
 MINECRAFT_PORT = int(os.environ.get("MINECRAFT_PORT", "25565"))
 MINECRAFT_LOG_RECENT_SECONDS = int(os.environ.get("MINECRAFT_LOG_RECENT_SECONDS", "1800"))
 MINECRAFT_LOG_RECENT_TAIL = int(os.environ.get("MINECRAFT_LOG_RECENT_TAIL", "200"))
+MINECRAFT_LOG_STREAM_TAIL = int(os.environ.get("MINECRAFT_LOG_STREAM_TAIL", "220"))
+MINECRAFT_LOG_STREAM_SECONDS = int(os.environ.get("MINECRAFT_LOG_STREAM_SECONDS", "7200"))
 MINECRAFT_HISTORY_LOG_SECONDS = int(os.environ.get("MINECRAFT_HISTORY_LOG_SECONDS", "86400"))
 MINECRAFT_HISTORY_LOG_TAIL = int(os.environ.get("MINECRAFT_HISTORY_LOG_TAIL", "5000"))
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
-PLAYER_LOGIN_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
-PLAYER_LOGOUT_PATTERN = re.compile(r"^\[(?P<time>\d{2}:\d{2}:\d{2})\].*?: (?P<name>[A-Za-z0-9_]{3,16}) left the game$")
+LOG_PREFIX = r"^\[(?P<time>\d{2}:\d{2}:\d{2})(?:\s+[^\]]+)?\].*?: "
+PLAYER_LOGIN_PATTERN = re.compile(LOG_PREFIX + r"(?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
+PLAYER_LOGOUT_PATTERN = re.compile(LOG_PREFIX + r"(?P<name>[A-Za-z0-9_]{3,16}) left the game$")
+PLAYER_CONNECTED_PATTERN = re.compile(LOG_PREFIX + r"(?P<name>[A-Za-z0-9_]{3,16})\[/[^\]]+\] logged in with entity id \d+")
+AUTHME_PLAYER_PATTERN = re.compile(LOG_PREFIX + r".*AuthMe.*\b(?P<name>[A-Za-z0-9_]{3,16})\b.*\b(logged in|registered|authenticated)\b", re.IGNORECASE)
 PLAYER_UUID_PATTERN = re.compile(r"UUID of player (?P<name>[A-Za-z0-9_]{3,16}) is (?P<uuid>[0-9a-fA-F-]{32,36})")
 DOCKER_TS_PATTERN = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2}T\S+Z)\s+(?P<line>.*)$")
 ALLOWED_CONTAINERS = {
@@ -594,6 +600,26 @@ def read_history_minecraft_log():
     ]
 
 
+def extract_player_event(line):
+    joined = PLAYER_LOGIN_PATTERN.match(line)
+    if joined:
+        return joined.group("time"), joined.group("name"), "joined"
+
+    left = PLAYER_LOGOUT_PATTERN.match(line)
+    if left:
+        return left.group("time"), left.group("name"), "left"
+
+    connected = PLAYER_CONNECTED_PATTERN.match(line)
+    if connected:
+        return connected.group("time"), connected.group("name"), "connected"
+
+    authme = AUTHME_PLAYER_PATTERN.match(line)
+    if authme:
+        return authme.group("time"), authme.group("name"), "authenticated"
+
+    return None
+
+
 def parse_docker_log_line(line):
     match = DOCKER_TS_PATTERN.match(line)
     if not match:
@@ -624,12 +650,13 @@ def read_player_history(lines=None):
     players = {}
 
     for line in lines:
-        match = PLAYER_LOGIN_PATTERN.match(line)
-        if not match:
+        event = extract_player_event(line)
+        if not event:
             continue
 
-        name = match.group("name")
-        seen_at = match.group("time")
+        seen_at, name, action = event
+        if action == "left":
+            continue
         if name not in players:
             players[name] = {
                 "name": name,
@@ -691,17 +718,16 @@ def read_player_events(lines):
         if uuid_match:
             uuid_by_player[uuid_match.group("name")] = uuid_match.group("uuid")
 
-        login = PLAYER_LOGIN_PATTERN.match(line)
-        logout = PLAYER_LOGOUT_PATTERN.match(line)
-        match = login or logout
-        if not match:
+        event = extract_player_event(line)
+        if not event:
             continue
+        log_time, player, action = event
         events.append(
             {
-                "log_time": match.group("time"),
-                "player": match.group("name"),
-                "uuid": uuid_by_player.get(match.group("name")),
-                "action": "joined" if login else "left",
+                "log_time": log_time,
+                "player": player,
+                "uuid": uuid_by_player.get(player),
+                "action": action,
                 "event_ts": event_ts,
                 "raw_line": raw_line,
             }
@@ -1125,6 +1151,15 @@ def get_latest_payload(max_age=180):
     return None
 
 
+def read_stream_minecraft_lines(tail=None, since=None):
+    text = read_minecraft_log_text(
+        tail=tail or MINECRAFT_LOG_STREAM_TAIL,
+        since=since,
+        timestamps=False,
+    )
+    return [line.rstrip() for line in text.splitlines() if line.rstrip()]
+
+
 def sampler_loop():
     while True:
         try:
@@ -1136,6 +1171,45 @@ def sampler_loop():
 
 
 class StatusHandler(BaseHTTPRequestHandler):
+    def send_sse_event(self, event, payload):
+        body = f"event: {event}\ndata: {json.dumps(payload, separators=(',', ':'))}\n\n".encode("utf-8")
+        self.wfile.write(body)
+        self.wfile.flush()
+
+    def stream_minecraft_logs(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+        seen = deque(maxlen=1200)
+        cursor = max(0, now_ts() - 2)
+        started_at = now_ts()
+
+        initial_lines = read_stream_minecraft_lines(tail=MINECRAFT_LOG_STREAM_TAIL)
+        for line in initial_lines:
+            seen.append(line)
+        self.send_sse_event("logs", {"mode": "replace", "lines": initial_lines})
+
+        while now_ts() - started_at < MINECRAFT_LOG_STREAM_SECONDS:
+            time.sleep(1.5)
+            lines = read_stream_minecraft_lines(tail=MINECRAFT_LOG_STREAM_TAIL, since=max(0, cursor - 1))
+            cursor = now_ts()
+            fresh = []
+            seen_set = set(seen)
+            for line in lines:
+                if line in seen_set:
+                    continue
+                seen.append(line)
+                seen_set.add(line)
+                fresh.append(line)
+            if fresh:
+                self.send_sse_event("logs", {"mode": "append", "lines": fresh})
+            else:
+                self.send_sse_event("ping", {"ts": now_ts()})
+
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/docker/logs":
@@ -1165,6 +1239,15 @@ class StatusHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            return
+
+        if parsed.path == "/minecraft/logs/stream":
+            try:
+                self.stream_minecraft_logs()
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            except Exception as error:
+                log_event(f"minecraft log stream failed: {error}")
             return
 
         if parsed.path == "/history":

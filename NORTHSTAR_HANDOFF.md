@@ -453,7 +453,7 @@ docker compose logs --tail=80 filebrowser
 docker compose logs --tail=40 status
 ```
 
-The portal homepage shows VM CPU/RAM/disk usage, Docker container stats, allowlisted Docker actions, a Minecraft backups panel, expandable live Docker logs, and a Minecraft panel with player count, persisted player history, Docker logs, and a command console. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
+The portal homepage shows VM CPU/RAM/disk usage, Docker container stats, allowlisted Docker actions, a Minecraft backups panel, expandable live Docker logs, and a Minecraft panel with player count, persisted player history, and a live Server-Sent Events console/log stream. Static HTML cannot read VM stats directly, so `admin/docker-compose.yml` runs a small internal `northstar-status` container from `admin/status/status_server.py`.
 Player profiles in SQLite store nickname, UUID when available from logs, first seen, last seen, join count, leave count, and last action.
 
 Status service design:
@@ -464,6 +464,7 @@ Status service design:
 - Reads `/opt/northstar/backups/minecraft` through the `/backups/minecraft` mount and exposes backup summary plus manual backup creation at `/status/minecraft/backup`.
 - Stores 10 days of SQLite history in `/opt/northstar/admin/status-data/northstar.db`.
 - Reads Minecraft raw logs through Docker logs for `northstar-minecraft`.
+- Streams Minecraft logs to the portal through `/status/minecraft/logs/stream` using Server-Sent Events.
 - Sends Minecraft panel commands through `docker exec ... mc-send-to-console`, with `rcon-cli` fallback, never through a shell.
 - Minecraft compose sets `CREATE_CONSOLE_IN_PIPE=TRUE`; it applies after the next intentional Minecraft restart/recreate.
 - Queries Minecraft through the normal server-list ping on `northstar-minecraft:25565`.

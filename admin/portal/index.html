@@ -709,6 +709,11 @@
       let dockerLogTimer = 0;
       let dockerLogScrollTop = 0;
       let dockerLogHasScrolled = false;
+      const MINECRAFT_LOG_LIMIT = 700;
+      let minecraftLogLines = [];
+      let minecraftLogSource = null;
+      let minecraftLogConnected = false;
+      let minecraftLogUserScrolled = false;
 
       const visibleActions = (container) => {
         if (container.protected) {
@@ -941,6 +946,47 @@
         }
       };
 
+      const renderMinecraftLogs = (mode, lines) => {
+        const output = document.getElementById("minecraft-logs");
+        const shouldStick = !minecraftLogUserScrolled || output.scrollTop + output.clientHeight >= output.scrollHeight - 24;
+
+        if (mode === "replace") {
+          minecraftLogLines = [...lines];
+        } else {
+          minecraftLogLines.push(...lines);
+        }
+        if (minecraftLogLines.length > MINECRAFT_LOG_LIMIT) {
+          minecraftLogLines = minecraftLogLines.slice(-MINECRAFT_LOG_LIMIT);
+        }
+
+        output.textContent = minecraftLogLines.length ? minecraftLogLines.join("\n") : "No log lines available";
+        if (shouldStick) {
+          output.scrollTop = output.scrollHeight;
+          minecraftLogUserScrolled = false;
+        }
+      };
+
+      const startMinecraftLogStream = () => {
+        if (minecraftLogSource) {
+          minecraftLogSource.close();
+        }
+
+        minecraftLogSource = new EventSource("/status/minecraft/logs/stream");
+        minecraftLogSource.addEventListener("open", () => {
+          minecraftLogConnected = true;
+          document.getElementById("minecraft-console-output").textContent = "Live console connected.";
+        });
+        minecraftLogSource.addEventListener("logs", (event) => {
+          minecraftLogConnected = true;
+          const payload = JSON.parse(event.data || "{}");
+          renderMinecraftLogs(payload.mode || "append", payload.lines || []);
+        });
+        minecraftLogSource.addEventListener("error", () => {
+          minecraftLogConnected = false;
+          document.getElementById("minecraft-console-output").textContent = "Live console reconnecting...";
+        });
+      };
+
       const setMinecraft = (minecraft) => {
         const status = minecraft.status || {};
         const players = status.sample || [];
@@ -995,8 +1041,9 @@
           historyNode.appendChild(row);
         }
 
-        document.getElementById("minecraft-logs").textContent =
-          logs.length ? logs.join("\n") : "No log lines available";
+        if (!minecraftLogConnected) {
+          renderMinecraftLogs("replace", logs);
+        }
       };
 
       const setBackups = (backups) => {
@@ -1089,9 +1136,8 @@
             throw new Error(text || `status ${response.status}`);
           }
           const data = JSON.parse(text);
-          output.textContent = data.output || "Command sent.";
+          output.textContent = data.output || "Command sent. Watch live console for server response.";
           input.value = "";
-          await loadStatus();
         } catch (error) {
           output.textContent = `Command failed: ${error.message}`;
         }
@@ -1148,8 +1194,13 @@
         }
       };
 
+      document.getElementById("minecraft-logs").addEventListener("scroll", (event) => {
+        const node = event.currentTarget;
+        minecraftLogUserScrolled = node.scrollTop + node.clientHeight < node.scrollHeight - 24;
+      });
       document.getElementById("minecraft-console").addEventListener("submit", runMinecraftCommand);
       document.getElementById("backup-now").addEventListener("click", runBackupNow);
+      startMinecraftLogStream();
       loadPersistedHistory().then(loadStatus);
       setInterval(loadStatus, 30000);
     </script>
