@@ -257,11 +257,12 @@
       .console {
         margin-top: 16px;
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) auto;
         gap: 8px;
       }
 
-      .console input {
+      .console input,
+      .console select {
         width: 100%;
         min-height: 38px;
         padding: 7px 10px;
@@ -272,7 +273,8 @@
         font: inherit;
       }
 
-      .console input:focus-visible {
+      .console input:focus-visible,
+      .console select:focus-visible {
         border-color: var(--accent);
         outline: none;
       }
@@ -567,12 +569,34 @@
               </tr>
             </tbody>
           </table>
+          <div class="console-output" id="minecraft-console-output">Commands are sent to the Minecraft container console.</div>
+          <pre class="logs" id="minecraft-logs">Loading logs...</pre>
           <form class="console" id="minecraft-console">
+            <select id="minecraft-command-preset" aria-label="Command preset">
+              <option value="">Command preset</option>
+              <option value="list">list</option>
+              <option value="say ">say &lt;message&gt;</option>
+              <option value="time set day">time set day</option>
+              <option value="time set night">time set night</option>
+              <option value="weather clear">weather clear</option>
+              <option value="weather rain">weather rain</option>
+              <option value="save-all flush">save-all flush</option>
+              <option value="tp ">tp &lt;player&gt; &lt;x&gt; &lt;y&gt; &lt;z&gt;</option>
+              <option value="gamemode survival ">gamemode survival &lt;player&gt;</option>
+              <option value="gamemode creative ">gamemode creative &lt;player&gt;</option>
+              <option value="op ">op &lt;player&gt;</option>
+              <option value="deop ">deop &lt;player&gt;</option>
+              <option value="whitelist list">whitelist list</option>
+              <option value="whitelist add ">whitelist add &lt;player&gt;</option>
+              <option value="whitelist remove ">whitelist remove &lt;player&gt;</option>
+              <option value="authme reload">authme reload</option>
+              <option value="authme unregister ">authme unregister &lt;player&gt;</option>
+              <option value="difficulty normal">difficulty normal</option>
+              <option value="difficulty hard">difficulty hard</option>
+            </select>
             <input id="minecraft-command" type="text" autocomplete="off" maxlength="180" placeholder="time set day">
             <button type="submit">Send</button>
           </form>
-          <div class="console-output" id="minecraft-console-output">Commands are sent to the Minecraft container console.</div>
-          <pre class="logs" id="minecraft-logs">Loading logs...</pre>
         </div>
 
         <div class="metric minecraft-panel">
@@ -591,12 +615,13 @@
               <tr>
                 <th>File</th>
                 <th>Date</th>
+                <th>Time</th>
                 <th>MB</th>
               </tr>
             </thead>
             <tbody id="backup-files">
               <tr>
-                <td colspan="3">Loading backups...</td>
+                <td colspan="4">Loading backups...</td>
               </tr>
             </tbody>
           </table>
@@ -695,6 +720,20 @@
         }
         const date = new Date(Number(timestamp) * 1000);
         return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+      };
+
+      const formatDate = (timestamp) => {
+        if (!timestamp) {
+          return "-";
+        }
+        return new Date(Number(timestamp) * 1000).toLocaleDateString();
+      };
+
+      const formatTime = (timestamp) => {
+        if (!timestamp) {
+          return "-";
+        }
+        return new Date(Number(timestamp) * 1000).toLocaleTimeString();
       };
 
       const actionLabel = {
@@ -1061,7 +1100,7 @@
         if (!files.length) {
           const row = document.createElement("tr");
           const cell = document.createElement("td");
-          cell.colSpan = 3;
+          cell.colSpan = 4;
           cell.textContent = backups.available ? "No backups found" : "Backup directory unavailable";
           row.appendChild(cell);
           body.appendChild(row);
@@ -1072,7 +1111,8 @@
           const row = document.createElement("tr");
           for (const value of [
             file.name,
-            formatSeen(file.mtime, "-"),
+            formatDate(file.mtime),
+            formatTime(file.mtime),
             Number(file.size_mib || 0).toFixed(1),
           ]) {
             const cell = document.createElement("td");
@@ -1081,6 +1121,18 @@
           }
           body.appendChild(row);
         }
+      };
+
+      const applyMinecraftCommandPreset = () => {
+        const preset = document.getElementById("minecraft-command-preset");
+        const input = document.getElementById("minecraft-command");
+        if (!preset.value) {
+          return;
+        }
+        input.value = preset.value;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        preset.value = "";
       };
 
       const runBackupNow = async () => {
@@ -1198,6 +1250,7 @@
         const node = event.currentTarget;
         minecraftLogUserScrolled = node.scrollTop + node.clientHeight < node.scrollHeight - 24;
       });
+      document.getElementById("minecraft-command-preset").addEventListener("change", applyMinecraftCommandPreset);
       document.getElementById("minecraft-console").addEventListener("submit", runMinecraftCommand);
       document.getElementById("backup-now").addEventListener("click", runBackupNow);
       startMinecraftLogStream();
