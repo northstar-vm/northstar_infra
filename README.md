@@ -132,7 +132,13 @@ cp .env.example .env
 nano .env
 ```
 
-Set `OPS` to the exact licensed Minecraft Java username that should have operator/admin permissions, or leave it blank for first boot. Keep `ONLINE_MODE=TRUE` in compose so only authenticated paid Java Edition accounts can join.
+Set `OPS` to the exact Minecraft Java username that should have operator/admin permissions, or leave it blank for first boot. Minecraft currently runs with `ONLINE_MODE=FALSE`, so keep AuthMe and SimpleWhitelist installed in `/opt/northstar/apps/minecraft/data/plugins` before opening the server to players.
+
+Current offline-mode safety layer:
+
+- AuthMe requires players to register and log in with a password.
+- SimpleWhitelist allows only configured player names.
+- Vanilla `white-list` should stay off in `server.properties`; SimpleWhitelist owns the name-based whitelist.
 
 During first setup, the compose file uses `restart: "no"` so configuration errors do not create a restart loop. After the server is stable, switch it back to `restart: unless-stopped` if you want it to auto-start after VM or Docker restarts.
 

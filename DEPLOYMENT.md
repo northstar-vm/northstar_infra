@@ -164,7 +164,20 @@ cp .env.example .env
 nano .env
 ```
 
-Set `OPS` to your exact licensed Minecraft Java username, or leave it blank for first boot. Placeholder usernames will stop startup because the server image tries to resolve them. Leave the real `.env` on the VM only; it is ignored by git.
+Set `OPS` to your exact Minecraft Java username, or leave it blank for first boot. Placeholder usernames can stop startup if the server image tries to resolve them. Leave the real `.env` on the VM only; it is ignored by git.
+
+This server currently uses `ONLINE_MODE=FALSE`. Before opening it to players, keep these plugins installed in `/opt/northstar/apps/minecraft/data/plugins`:
+
+- `AuthMe-6.0.0-Paper.jar` for `/register` and `/login`.
+- `SimpleWhitelist.jar` for name-based whitelist commands.
+
+SimpleWhitelist uses the normal whitelist command name:
+
+```bash
+docker exec -i northstar-minecraft rcon-cli "whitelist on"
+docker exec -i northstar-minecraft rcon-cli "whitelist add Cruetto"
+docker exec -i northstar-minecraft rcon-cli "whitelist list"
+```
 
 Start the server:
 
@@ -263,7 +276,7 @@ Players connect to:
 mc.attentionisallineed.xyz
 ```
 
-Minecraft uses port `25565/tcp` directly. Do not route it through Caddy, and keep `ONLINE_MODE=TRUE` so only authenticated paid Java Edition accounts can join.
+Minecraft uses port `25565/tcp` directly. Do not route it through Caddy. The server currently uses `ONLINE_MODE=FALSE`, protected by AuthMe plus SimpleWhitelist.
 
 ## 5. Start Admin Services
 
@@ -456,7 +469,7 @@ Expected security layers:
 - Optional Cloudflare Access asks for email OTP before Caddy if configured.
 - File Browser opens at `/files/` after Caddy authentication and does not ask for a second login.
 - The portal Docker panel shows allowlisted container stats and common controls.
-- Minecraft requires a licensed Java Edition account because `ONLINE_MODE=TRUE`.
+- Minecraft accepts offline-mode clients because `ONLINE_MODE=FALSE`; AuthMe and SimpleWhitelist are the required safety layer.
 
 ## 12. CI/CD Setup
 

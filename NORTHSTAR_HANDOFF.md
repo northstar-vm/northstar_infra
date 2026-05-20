@@ -340,8 +340,8 @@ Important runtime choices:
 - World/server data: `/opt/northstar/apps/minecraft/data`.
 - Backups: `/opt/northstar/backups/minecraft`.
 - Port: `25565/tcp`, published directly by Docker.
-- `online-mode=true`; only authenticated licensed Java Edition accounts can join.
-- Whitelist is intentionally not enabled right now.
+- `online-mode=false`; AuthMe handles player registration/login.
+- SimpleWhitelist handles name-based whitelist through `/whitelist` commands.
 - RCON is available inside the container for `docker exec ... rcon-cli`, but port `25575` is not published to the internet.
 - Current compose uses `restart: "no"` to avoid restart loops during setup/debugging. Once stable, it can be changed to `restart: unless-stopped`.
 

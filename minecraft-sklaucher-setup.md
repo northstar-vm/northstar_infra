@@ -4,8 +4,8 @@ This guide sets up a safer local Minecraft launcher workflow on Linux Mint/Ubunt
 It keeps launcher files in predictable folders, runs the launcher in a Firejail
 sandbox, and gives you one stable desktop shortcut.
 
-Use a licensed Microsoft/Minecraft Java account when joining `online-mode=true`
-servers such as:
+Use the launcher profile/name that is allowed by the server whitelist when joining
+offline-mode servers such as:
 
 ```text
 mc.attentionisallineed.xyz
