@@ -154,6 +154,35 @@
         letter-spacing: 0.08em;
       }
 
+      .metric-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .status-lamp {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #8a928c;
+        box-shadow: 0 0 0 3px color-mix(in srgb, #8a928c 22%, transparent);
+      }
+
+      .status-lamp.online {
+        background: #25c26e;
+        box-shadow: 0 0 0 3px color-mix(in srgb, #25c26e 22%, transparent);
+      }
+
+      .status-lamp.starting {
+        background: #d7a72c;
+        box-shadow: 0 0 0 3px color-mix(in srgb, #d7a72c 24%, transparent);
+      }
+
+      .status-lamp.error {
+        background: #ef5b5b;
+        box-shadow: 0 0 0 3px color-mix(in srgb, #ef5b5b 24%, transparent);
+      }
+
       .metric-value {
         font-size: 1.35rem;
         font-weight: 720;
@@ -547,7 +576,10 @@
         <div class="metric minecraft-panel">
           <div class="minecraft-head">
             <div>
-              <span class="metric-name">Minecraft</span>
+              <span class="metric-title">
+                <span class="status-lamp" id="minecraft-lamp" title="Loading"></span>
+                <span class="metric-name">Minecraft</span>
+              </span>
               <div class="metric-note" id="minecraft-note">Loading server...</div>
             </div>
             <span class="metric-value" id="minecraft-count">--/--</span>
@@ -1028,18 +1060,25 @@
 
       const setMinecraft = (minecraft) => {
         const status = minecraft.status || {};
+        const health = minecraft.health || {};
         const players = status.sample || [];
         const logs = minecraft.logs || [];
         const playerHistory = minecraft.players || [];
         const playersNode = document.getElementById("minecraft-players");
         const historyNode = document.getElementById("minecraft-player-history");
+        const lamp = document.getElementById("minecraft-lamp");
+        const healthState = ["online", "starting", "error"].includes(health.state) ? health.state : "offline";
 
+        lamp.className = `status-lamp ${healthState}`;
+        lamp.title = health.detail || health.label || "Minecraft status";
         document.getElementById("minecraft-count").textContent =
           status.reachable ? `${status.online}/${status.max}` : "--/--";
         document.getElementById("minecraft-note").textContent =
-          status.reachable
-            ? `${status.version}, ${status.online} player${status.online === 1 ? "" : "s"} online`
-            : "Server status unavailable";
+          `${health.label || "Unknown"} - ${
+            status.reachable
+              ? `${status.version}, ${status.online} player${status.online === 1 ? "" : "s"} online`
+              : health.detail || "Server status unavailable"
+          }`;
 
         playersNode.replaceChildren();
         if (players.length) {

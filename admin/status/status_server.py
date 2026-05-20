@@ -32,6 +32,8 @@ MINECRAFT_LOG_STREAM_TAIL = int(os.environ.get("MINECRAFT_LOG_STREAM_TAIL", "220
 MINECRAFT_LOG_STREAM_SECONDS = int(os.environ.get("MINECRAFT_LOG_STREAM_SECONDS", "7200"))
 MINECRAFT_HISTORY_LOG_SECONDS = int(os.environ.get("MINECRAFT_HISTORY_LOG_SECONDS", "86400"))
 MINECRAFT_HISTORY_LOG_TAIL = int(os.environ.get("MINECRAFT_HISTORY_LOG_TAIL", "5000"))
+MINECRAFT_ERROR_LOG_SECONDS = int(os.environ.get("MINECRAFT_ERROR_LOG_SECONDS", "600"))
+MINECRAFT_ERROR_LOG_TAIL = int(os.environ.get("MINECRAFT_ERROR_LOG_TAIL", "120"))
 STAT_PATH = "/host/proc/stat"
 LOADAVG_PATH = "/host/proc/loadavg"
 LOG_PREFIX = r"^\[(?P<time>\d{2}:\d{2}:\d{2})(?:\s+[^\]]+)?\].*?: "
@@ -52,6 +54,7 @@ PROTECTED_CONTAINERS = {
     if name.strip()
 }
 DOCKER_ACTIONS = {"start", "stop", "restart", "pause", "unpause"}
+MINECRAFT_ERROR_PATTERN = re.compile(r"\b(ERROR|Exception|AccessDeniedException)\b|Couldn't load server icon", re.IGNORECASE)
 LATEST_PAYLOAD = None
 LATEST_PAYLOAD_TS = 0
 PAYLOAD_LOCK = threading.Lock()
@@ -1115,10 +1118,12 @@ def build_status_payload(store=False):
     memory = read_memory()
     disk = read_disk()
     minecraft_logs = read_recent_minecraft_log()
+    minecraft_status = query_minecraft_status()
     if store:
         store_player_events()
     minecraft = {
-        "status": query_minecraft_status(),
+        "status": minecraft_status,
+        "health": summarize_minecraft_health(minecraft_status, minecraft_logs),
         "logs": minecraft_logs,
         "players": read_persisted_player_history() or read_player_history(minecraft_logs),
     }
@@ -1161,6 +1166,38 @@ def read_stream_minecraft_lines(tail=None, since=None):
         empty_message=False,
     )
     return [line.rstrip() for line in text.splitlines() if line.rstrip()]
+
+
+def summarize_minecraft_health(status, logs=None):
+    container = find_container_by_name(MINECRAFT_CONTAINER)
+    if not container:
+        return {"state": "offline", "label": "Offline", "detail": "Minecraft container not found"}
+
+    container_state = container.get("State", "unknown")
+    container_status = container.get("Status", "")
+    if container_state in {"exited", "dead", "created", "removing"}:
+        return {"state": "offline", "label": "Offline", "detail": container_status or container_state}
+    if container_state in {"restarting", "paused"}:
+        return {"state": "starting", "label": "Restarting", "detail": container_status or container_state}
+
+    recent_logs = logs
+    if recent_logs is None:
+        since = now_ts() - MINECRAFT_ERROR_LOG_SECONDS
+        recent_logs = [
+            line.rstrip()
+            for line in read_minecraft_log_text(tail=MINECRAFT_ERROR_LOG_TAIL, since=since, empty_message=False).splitlines()
+            if line.rstrip()
+        ]
+    error_line = next((line for line in reversed(recent_logs) if MINECRAFT_ERROR_PATTERN.search(line)), "")
+    if error_line:
+        return {"state": "error", "label": "Recent error", "detail": error_line[-180:]}
+
+    if status.get("reachable") and container_state == "running":
+        return {"state": "online", "label": "Online", "detail": container_status or "Server ping is reachable"}
+    if container_state == "running":
+        return {"state": "starting", "label": "Starting", "detail": status.get("error") or container_status or "Waiting for server ping"}
+
+    return {"state": "offline", "label": "Offline", "detail": container_status or container_state}
 
 
 def sampler_loop():
@@ -1276,6 +1313,7 @@ class StatusHandler(BaseHTTPRequestHandler):
                 "containers": read_latest_container_history(),
                 "minecraft": {
                     "status": read_latest_minecraft_history(),
+                    "health": {"state": "starting", "label": "Stored sample", "detail": "Waiting for live status"},
                     "logs": read_stored_minecraft_logs(),
                     "players": read_persisted_player_history(),
                 },
