@@ -199,7 +199,7 @@ Players connect to:
 mc.attentionisallineed.xyz
 ```
 
-Minecraft uses raw TCP on port `25565`, not HTTP/HTTPS, so it does not go through Caddy.
+Minecraft uses raw TCP on host port `25677`, not HTTP/HTTPS, so it does not go through Caddy.
 
 Minecraft resource packs are served over HTTPS from:
 
@@ -251,7 +251,7 @@ If Minecraft is moved away from the default port, keep the `mc` A record DNS-onl
 
 | Type | Name | Target | Port | Proxy |
 | --- | --- | --- | --- | --- |
-| `SRV` | `_minecraft._tcp.mc` | `mc.attentionisallineed.xyz` | custom port | DNS-only |
+| `SRV` | `_minecraft._tcp.mc` | `mc.attentionisallineed.xyz` | `25677` | DNS-only |
 
 ## External Services
 

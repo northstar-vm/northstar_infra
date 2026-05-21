@@ -4,7 +4,7 @@ services:
     container_name: northstar-minecraft
     restart: "no"
     ports:
-      - "25565:25565"
+      - "25677:25565"
     environment:
       EULA: "TRUE"
       TYPE: "PAPER"

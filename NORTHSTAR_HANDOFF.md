@@ -83,14 +83,14 @@ CNAME  www                      attentionisallineed.xyz  Proxied
 
 If Cloudflare shows TLS errors, check Cloudflare SSL/TLS mode and Caddy logs before changing DNS randomly.
 
-Important: `mc` must stay DNS-only / gray-cloud. Minecraft uses raw TCP on port `25565`; it does not go through the normal Cloudflare HTTP proxy or Caddy.
+Important: `mc` must stay DNS-only / gray-cloud. Minecraft uses raw TCP on host port `25677`; it does not go through the normal Cloudflare HTTP proxy or Caddy.
 
 Cloudflare HTTP security features such as Bot Fight Mode, Cloudflare Managed Rules, AI bot blocking, AI Labyrinth, challenge passage, and managed `robots.txt` apply only to proxied HTTP/HTTPS hostnames. They can protect the web apps and admin portal, but not the Minecraft Java TCP server on the DNS-only `mc` record.
 
 If Minecraft is moved to a non-default port, keep the `mc` A record DNS-only and add an SRV record:
 
 ```text
-SRV  _minecraft._tcp.mc  0 0 <minecraft-port> mc.attentionisallineed.xyz  DNS only
+SRV  _minecraft._tcp.mc  0 0 25677 mc.attentionisallineed.xyz  DNS only
 ```
 
 ## Oracle Network / Firewall
@@ -100,14 +100,14 @@ OCI ingress rules added:
 - TCP 22 for SSH.
 - TCP 80 for HTTP.
 - TCP 443 for HTTPS.
-- TCP 25565 for Minecraft Java Edition.
+- TCP 25677 for Minecraft Java Edition.
 
 Ubuntu `ufw` was inactive earlier, but rules were added:
 
 ```bash
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-sudo ufw allow 25565/tcp
+sudo ufw allow 25677/tcp
 sudo ufw status
 ```
 
@@ -347,7 +347,7 @@ Important runtime choices:
 - VM-only env file: `/opt/northstar/infra/apps/minecraft/.env`.
 - World/server data: `/opt/northstar/apps/minecraft/data`.
 - Backups: `/opt/northstar/backups/minecraft`.
-- Port: `25565/tcp`, published directly by Docker.
+- Host port: `25677/tcp`, published by Docker to container port `25565/tcp`.
 - `online-mode=false`; AuthMe handles player registration/login.
 - SimpleWhitelist handles name-based whitelist through `/whitelist` commands.
 - MOTD is managed directly in compose as a YAML multiline value; the VM-only `.env` should not set `SERVER_NAME`.
@@ -394,7 +394,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep minecraft
 Expected port includes:
 
 ```text
-0.0.0.0:25565->25565/tcp
+0.0.0.0:25677->25565/tcp
 ```
 
 Backups:

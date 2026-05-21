@@ -140,7 +140,7 @@ Then open Minecraft's TCP port in Oracle Cloud ingress rules:
 ```text
 Source CIDR: 0.0.0.0/0
 IP Protocol: TCP
-Destination Port Range: 25565
+Destination Port Range: 25677
 Description: Minecraft Java server
 ```
 
@@ -153,7 +153,7 @@ sudo ufw status verbose
 If it says `Status: active`, allow Minecraft:
 
 ```bash
-sudo ufw allow 25565/tcp
+sudo ufw allow 25677/tcp
 ```
 
 Create the VM-only environment file:
@@ -284,7 +284,7 @@ Players connect to:
 mc.attentionisallineed.xyz
 ```
 
-Minecraft uses port `25565/tcp` directly. Do not route it through Caddy. The server currently uses `ONLINE_MODE=FALSE`, protected by AuthMe plus SimpleWhitelist.
+Minecraft uses host port `25677/tcp` directly. Do not route it through Caddy. The server currently uses `ONLINE_MODE=FALSE`, protected by AuthMe plus SimpleWhitelist.
 
 ## 5. Start Admin Services
 
@@ -430,7 +430,7 @@ Keep the existing Quizzy record working.
 
 `quizzy`, `cv`, and `northstar` can all be Cloudflare proxied because Caddy serves HTTPS on the VM. If Cloudflare shows a TLS error such as 525 or 526, check Cloudflare SSL/TLS mode and use `Full (strict)` with Caddy's valid certificates, or temporarily switch the record back to `DNS only` while debugging.
 
-Keep `mc` DNS-only because Minecraft uses raw TCP on `25565`, not HTTPS through Caddy.
+Keep `mc` DNS-only because Minecraft uses raw TCP on host port `25677`, not HTTPS through Caddy.
 
 Cloudflare HTTP security features such as Bot Fight Mode, Cloudflare Managed Rules, AI bot blocking, AI Labyrinth, challenge passage, and managed `robots.txt` apply only to proxied HTTP/HTTPS hostnames. They are useful for `attentionisallineed.xyz`, `www`, `quizzy`, `cv`, and `northstar`, but they do not protect Minecraft Java traffic on the DNS-only `mc` record.
 
@@ -441,7 +441,7 @@ Type: SRV
 Name: _minecraft._tcp.mc
 Priority: 0
 Weight: 0
-Port: <minecraft-port>
+Port: 25677
 Target: mc.attentionisallineed.xyz
 Proxy status: DNS only
 ```
