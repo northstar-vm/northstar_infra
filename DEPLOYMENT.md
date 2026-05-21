@@ -133,6 +133,14 @@ Type: A
 Name: mc
 Content: 130.61.33.233
 Proxy status: DNS only
+
+Type: SRV
+Name: _minecraft._tcp.mc
+Priority: 0
+Weight: 0
+Port: 25677
+Target: mc.attentionisallineed.xyz
+Proxy status: DNS only
 ```
 
 Then open Minecraft's TCP port in Oracle Cloud ingress rules:

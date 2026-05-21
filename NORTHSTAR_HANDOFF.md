@@ -79,6 +79,7 @@ A      mc                       130.61.33.233  DNS only
 A      northstar                130.61.33.233  Proxied
 A      quizzy                   130.61.33.233  Proxied
 CNAME  www                      attentionisallineed.xyz  Proxied
+SRV    _minecraft._tcp.mc       0 0 25677 mc.attentionisallineed.xyz  DNS only
 ```
 
 If Cloudflare shows TLS errors, check Cloudflare SSL/TLS mode and Caddy logs before changing DNS randomly.
@@ -87,7 +88,7 @@ Important: `mc` must stay DNS-only / gray-cloud. Minecraft uses raw TCP on host 
 
 Cloudflare HTTP security features such as Bot Fight Mode, Cloudflare Managed Rules, AI bot blocking, AI Labyrinth, challenge passage, and managed `robots.txt` apply only to proxied HTTP/HTTPS hostnames. They can protect the web apps and admin portal, but not the Minecraft Java TCP server on the DNS-only `mc` record.
 
-If Minecraft is moved to a non-default port, keep the `mc` A record DNS-only and add an SRV record:
+Minecraft uses an SRV record so Java clients can connect to `mc.attentionisallineed.xyz` without typing the custom host port:
 
 ```text
 SRV  _minecraft._tcp.mc  0 0 25677 mc.attentionisallineed.xyz  DNS only
@@ -110,6 +111,8 @@ sudo ufw allow 443/tcp
 sudo ufw allow 25677/tcp
 sudo ufw status
 ```
+
+Port `25565/tcp` was removed from OCI ingress and deleted from `ufw` after Minecraft moved to host port `25677`.
 
 Check current firewall state before changing it:
 

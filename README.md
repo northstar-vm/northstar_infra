@@ -240,6 +240,7 @@ Create these DNS records:
 | `A` | `quizzy` | `130.61.33.233` | Enabled |
 | `A` | `mc` | `130.61.33.233` | Disabled / DNS-only |
 | `CNAME` | `www` | `attentionisallineed.xyz` | Enabled |
+| `SRV` | `_minecraft._tcp.mc` | `mc.attentionisallineed.xyz` | Disabled / DNS-only |
 
 `attentionisallineed.xyz`, `www`, `quizzy`, `cv`, and `northstar` can all be Cloudflare proxied while Caddy is serving valid HTTPS certificates on the VM. If Cloudflare shows a TLS error, check Cloudflare SSL/TLS mode before changing the VM.
 
@@ -247,7 +248,7 @@ Keep `mc.attentionisallineed.xyz` DNS-only because Cloudflare's normal orange-cl
 
 Cloudflare HTTP security features such as Bot Fight Mode, Cloudflare Managed Rules, AI bot blocking, AI Labyrinth, challenge passage, and managed `robots.txt` apply to proxied web hostnames only. They can protect the public websites and admin portal, but they do not protect the Minecraft Java TCP server while `mc` is DNS-only.
 
-If Minecraft is moved away from the default port, keep the `mc` A record DNS-only and add an SRV record so Java clients can still connect to `mc.attentionisallineed.xyz` without typing a port:
+Minecraft uses an SRV record so Java clients can connect to `mc.attentionisallineed.xyz` without typing the custom host port:
 
 | Type | Name | Target | Port | Proxy |
 | --- | --- | --- | --- | --- |
