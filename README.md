@@ -245,6 +245,14 @@ Create these DNS records:
 
 Keep `mc.attentionisallineed.xyz` DNS-only because Cloudflare's normal orange-cloud proxy does not proxy Minecraft TCP traffic.
 
+Cloudflare HTTP security features such as Bot Fight Mode, Cloudflare Managed Rules, AI bot blocking, AI Labyrinth, challenge passage, and managed `robots.txt` apply to proxied web hostnames only. They can protect the public websites and admin portal, but they do not protect the Minecraft Java TCP server while `mc` is DNS-only.
+
+If Minecraft is moved away from the default port, keep the `mc` A record DNS-only and add an SRV record so Java clients can still connect to `mc.attentionisallineed.xyz` without typing a port:
+
+| Type | Name | Target | Port | Proxy |
+| --- | --- | --- | --- | --- |
+| `SRV` | `_minecraft._tcp.mc` | `mc.attentionisallineed.xyz` | custom port | DNS-only |
+
 ## External Services
 
 MongoDB for Quizzy:

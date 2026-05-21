@@ -85,6 +85,14 @@ If Cloudflare shows TLS errors, check Cloudflare SSL/TLS mode and Caddy logs bef
 
 Important: `mc` must stay DNS-only / gray-cloud. Minecraft uses raw TCP on port `25565`; it does not go through the normal Cloudflare HTTP proxy or Caddy.
 
+Cloudflare HTTP security features such as Bot Fight Mode, Cloudflare Managed Rules, AI bot blocking, AI Labyrinth, challenge passage, and managed `robots.txt` apply only to proxied HTTP/HTTPS hostnames. They can protect the web apps and admin portal, but not the Minecraft Java TCP server on the DNS-only `mc` record.
+
+If Minecraft is moved to a non-default port, keep the `mc` A record DNS-only and add an SRV record:
+
+```text
+SRV  _minecraft._tcp.mc  0 0 <minecraft-port> mc.attentionisallineed.xyz  DNS only
+```
+
 ## Oracle Network / Firewall
 
 OCI ingress rules added:

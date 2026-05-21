@@ -432,6 +432,20 @@ Keep the existing Quizzy record working.
 
 Keep `mc` DNS-only because Minecraft uses raw TCP on `25565`, not HTTPS through Caddy.
 
+Cloudflare HTTP security features such as Bot Fight Mode, Cloudflare Managed Rules, AI bot blocking, AI Labyrinth, challenge passage, and managed `robots.txt` apply only to proxied HTTP/HTTPS hostnames. They are useful for `attentionisallineed.xyz`, `www`, `quizzy`, `cv`, and `northstar`, but they do not protect Minecraft Java traffic on the DNS-only `mc` record.
+
+If Minecraft is moved to a non-default port, add an SRV record instead of trying to redirect DNS:
+
+```text
+Type: SRV
+Name: _minecraft._tcp.mc
+Priority: 0
+Weight: 0
+Port: <minecraft-port>
+Target: mc.attentionisallineed.xyz
+Proxy status: DNS only
+```
+
 For two-factor protection on the admin portal, use Cloudflare Access in front of `northstar.attentionisallineed.xyz` with an allow policy for your email and one-time PIN login. Caddy Basic Auth stays as the VM-side fallback; Cloudflare Access adds the second factor before traffic reaches Caddy.
 
 ## 9. Quizzy Database and OAuth Checks
