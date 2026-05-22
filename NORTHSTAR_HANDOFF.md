@@ -355,6 +355,8 @@ Important runtime choices:
 - SimpleWhitelist handles name-based whitelist through `/whitelist` commands.
 - MOTD is managed directly in compose as a YAML multiline value; the VM-only `.env` should not set `SERVER_NAME`.
 - Active plugins: AuthMe, SimpleWhitelist, SkinsRestorer, QuickSortX, TreeFeller, LogBlock.
+- Active worldgen/adventure datapacks: `Katters Structures Only Dungeon.zip` and `Dungeons and Taverns v5.2.0.zip`.
+- Datapacks affect newly generated chunks only.
 - Server resource pack URL: `https://mc.attentionisallineed.xyz/resourcepacks/northstar-resource-pack.zip`.
 - Resource pack layer order: `Rethoughted GUI` over `Vanilla Experience+` over `spook's tweaks`.
 - RCON is available inside the container for `docker exec ... rcon-cli`, but port `25575` is not published to the internet.

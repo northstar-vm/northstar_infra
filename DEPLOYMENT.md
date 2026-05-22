@@ -183,6 +183,13 @@ This server currently uses `ONLINE_MODE=FALSE`. Before opening it to players, ke
 - `TreeFeller-1.30.1.jar` for safe tree felling.
 - `logblock-1.0.5.jar` for block placement/break history and anti-grief inspection.
 
+Worldgen/adventure datapacks live in `/opt/northstar/apps/minecraft/data/world/datapacks`:
+
+- `Katters Structures Only Dungeon.zip` for dungeon structures.
+- `Dungeons and Taverns v5.2.0.zip` for vanilla-like taverns, hideouts, outposts, and dungeons.
+
+These datapacks affect newly generated chunks only.
+
 SimpleWhitelist uses the normal whitelist command name:
 
 ```bash

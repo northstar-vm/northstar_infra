@@ -147,6 +147,11 @@ Current gameplay/QoL plugins:
 - TreeFeller lets axes fell valid trees while using tree detection settings that avoid player-built structures.
 - LogBlock records block placement/break history for anti-grief inspection.
 
+Current worldgen/adventure datapacks:
+
+- `Katters Structures Only Dungeon.zip` adds dungeon structures in newly generated chunks.
+- `Dungeons and Taverns v5.2.0.zip` adds vanilla-like taverns, hideouts, outposts, and dungeons in newly generated chunks.
+
 The compose file sets the public server-list `MOTD` directly as a YAML multiline value. Do not also set `SERVER_NAME` in the VM-only `.env`, otherwise it can reintroduce escaping confusion.
 
 During first setup, the compose file uses `restart: "no"` so configuration errors do not create a restart loop. After the server is stable, switch it back to `restart: unless-stopped` if you want it to auto-start after VM or Docker restarts.
