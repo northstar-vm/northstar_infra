@@ -22,6 +22,10 @@ cv.attentionisallineed.xyz {
 telecart.attentionisallineed.xyz {
 	encode zstd gzip
 
+	handle /health {
+		reverse_proxy telecart-backend:8000
+	}
+
 	handle /api/* {
 		reverse_proxy telecart-backend:8000
 	}
