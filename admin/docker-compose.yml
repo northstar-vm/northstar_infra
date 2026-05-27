@@ -17,7 +17,7 @@ services:
     container_name: northstar-status
     restart: unless-stopped
     environment:
-      DOCKER_ALLOWED_CONTAINERS: "northstar-caddy,northstar-cv-web,northstar-filebrowser,northstar-minecraft,northstar-status,quizzy-backend-1,quizzy-frontend-1,quizzy-mongo-1,quizzy-web-1"
+      DOCKER_ALLOWED_CONTAINERS: "northstar-caddy,northstar-cv-web,northstar-filebrowser,northstar-minecraft,northstar-status,quizzy-backend-1,quizzy-frontend-1,quizzy-mongo-1,quizzy-web-1,telecart-backend,telecart-frontend,telecart-postgres,telecart-redis"
       DOCKER_PROTECTED_CONTAINERS: "northstar-caddy,northstar-filebrowser,northstar-status"
       METRICS_RETENTION_DAYS: "10"
       METRICS_SAMPLE_SECONDS: "60"

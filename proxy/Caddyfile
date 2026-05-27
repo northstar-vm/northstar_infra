@@ -19,6 +19,26 @@ cv.attentionisallineed.xyz {
 	reverse_proxy cv-web:80
 }
 
+telecart.attentionisallineed.xyz {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy telecart-backend:8000
+	}
+
+	handle /ops/* {
+		reverse_proxy telecart-backend:8000
+	}
+
+	handle /telegram/* {
+		reverse_proxy telecart-backend:8000
+	}
+
+	handle {
+		reverse_proxy telecart-frontend:80
+	}
+}
+
 mc.attentionisallineed.xyz {
 	handle /resourcepacks/* {
 		root * /srv
