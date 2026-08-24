@@ -22,9 +22,10 @@ services:
       RESOURCE_PACK_SHA1: "85f5705c60394aeca845d056cb6f5840578670d8"
       REQUIRE_RESOURCE_PACK: "FALSE"
       # Plugins are installed as manual jars in data/plugins/ (not auto-downloaded),
-      # because Paper 26.1.2 is newer than several plugins' published builds:
-      #   ArmorStandEditor 26.1.2-51 (Modrinth) | EtherealPortals 1.1.4 (Modrinth)
-      #   Movecraft dev-build (GitHub Actions artifact, has the v26_1_2 module)
+      # because Paper releases are often newer than several plugins' published builds:
+      #   ArmorStandEditor 26.1.2-51 (Modrinth, no 26.2 build yet — runs fine on 26.2 anyway)
+      #   EtherealPortals 1.2.0-MC26.2 (Modrinth) | ChestSorter 2.1.0-MC26.2 (Modrinth, replaced QuickSortX)
+      #   Movecraft dev-build (GitHub Actions artifact, commit b49f891c, has the v26_2 module)
       OPS: "${OPS:-}"
       WHITELIST: "${WHITELIST:-}"
       UID: "${MINECRAFT_UID:-1000}"
