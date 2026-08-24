@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "description": "Northstar: force EtherealPortals text labels to not render through blocks (self-enforcing)",
+    "pack_format": 88,
+    "min_format": 4,
+    "max_format": 9999
+  }
+}
