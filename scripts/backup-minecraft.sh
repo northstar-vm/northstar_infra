@@ -21,9 +21,20 @@ if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
   trap 'docker exec "$CONTAINER_NAME" rcon-cli save-on >/dev/null || true' EXIT
 fi
 
-if ! sudo tar -C "$DATA_DIR" -czf "$BACKUP_FILE" .; then
+set +e
+sudo tar -C "$DATA_DIR" -czf "$BACKUP_FILE" .
+TAR_STATUS=$?
+set -e
+
+# tar exits 1 for "file changed as we read it", a benign race with the live
+# server process (e.g. logs/latest.log) and not a corrupt archive. Only
+# exit codes >1 are fatal tar errors.
+if [ "$TAR_STATUS" -gt 1 ]; then
+  echo "tar failed with exit code $TAR_STATUS, discarding $BACKUP_FILE" >&2
   rm -f "$BACKUP_FILE"
   exit 1
+elif [ "$TAR_STATUS" -eq 1 ]; then
+  echo "tar reported changed files during backup (exit 1); keeping $BACKUP_FILE" >&2
 fi
 
 if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
