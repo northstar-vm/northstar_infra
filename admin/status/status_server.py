@@ -40,6 +40,7 @@ LOADAVG_PATH = "/host/proc/loadavg"
 LOG_PREFIX = r"^\[(?P<time>\d{2}:\d{2}:\d{2})(?:\s+[^\]]+)?\].*?: "
 PLAYER_LOGIN_PATTERN = re.compile(LOG_PREFIX + r"(?P<name>[A-Za-z0-9_]{3,16}) joined the game$")
 PLAYER_LOGOUT_PATTERN = re.compile(LOG_PREFIX + r"(?P<name>[A-Za-z0-9_]{3,16}) left the game$")
+PLAYER_DISCONNECT_PATTERN = re.compile(LOG_PREFIX + r"(?P<name>[A-Za-z0-9_]{3,16}) lost connection:")
 PLAYER_CONNECTED_PATTERN = re.compile(LOG_PREFIX + r"(?P<name>[A-Za-z0-9_]{3,16})\[/[^\]]+\] logged in with entity id \d+")
 AUTHME_PLAYER_PATTERN = re.compile(LOG_PREFIX + r".*AuthMe.*\b(?P<name>[A-Za-z0-9_]{3,16})\b.*\b(logged in|registered|authenticated)\b", re.IGNORECASE)
 PLAYER_UUID_PATTERN = re.compile(r"UUID of player (?P<name>[A-Za-z0-9_]{3,16}) is (?P<uuid>[0-9a-fA-F-]{32,36})")
@@ -621,6 +622,13 @@ def extract_player_event(line):
     left = PLAYER_LOGOUT_PATTERN.match(line)
     if left:
         return left.group("time"), left.group("name"), "left"
+
+    # A kick, whitelist rejection, crash, or network drop never logs
+    # "left the game" -- without this, active_since_ts is never cleared and
+    # playtime grows forever for any player who disconnects abnormally.
+    disconnected = PLAYER_DISCONNECT_PATTERN.match(line)
+    if disconnected:
+        return disconnected.group("time"), disconnected.group("name"), "left"
 
     connected = PLAYER_CONNECTED_PATTERN.match(line)
     if connected:
