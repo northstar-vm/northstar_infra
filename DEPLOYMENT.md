@@ -242,10 +242,10 @@ To run backups every 8 hours, install this cron entry with `crontab -e`:
 0 */8 * * * /bin/bash /opt/northstar/infra/scripts/backup-minecraft.sh >> /opt/northstar/backups/minecraft/backup.log 2>&1
 ```
 
-The backup script keeps 7 days of `minecraft-world-*.tar.gz` archives by default. Override it for one run with:
+The backup script keeps the most recent 21 `minecraft-world-*.tar.gz` archives by default (~7 days at the every-8-hours cron cadence). Each run only evicts the oldest archive(s) needed to get back under that cap, so a long outage followed by recovery can't wipe the whole backlog in one shot. Override the cap for one run with:
 
 ```bash
-RETENTION_DAYS=30 bash /opt/northstar/infra/scripts/backup-minecraft.sh
+MAX_BACKUPS=50 bash /opt/northstar/infra/scripts/backup-minecraft.sh
 ```
 
 Verify cron is installed:

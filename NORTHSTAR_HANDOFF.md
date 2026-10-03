@@ -412,9 +412,9 @@ ls -lh /opt/northstar/backups/minecraft
 Backup behavior:
 
 - Backups are full compressed `.tar.gz` archives, not incremental.
-- Script tells the server `save-off`, `save-all flush`, archives the data folder, then `save-on`.
-- Script uses `sudo tar` because some container-owned files are not readable by plain `ubuntu`.
-- Default retention is 7 days.
+- Script tells the server `save-off`, `save-all flush`, archives the data folder, then `save-on`. These RCON calls are best-effort: if `save-off` fails, the script logs a warning and still takes the backup rather than aborting.
+- Script uses `sudo tar` because some container-owned files are not readable by plain `ubuntu`. A tar exit code of 1 ("file changed as we read it", from the live server writing logs during the archive) is treated as a benign warning, not a failure — only exit codes above 1 discard the archive.
+- Retention is count-based: keeps the most recent 21 backups (`MAX_BACKUPS`) by default. Each run evicts only the oldest archive(s) needed to get back under that cap, so a long outage followed by recovery can't wipe the whole backlog in one shot.
 - The admin portal has a Backups panel showing total stored size, backup count, recent archive filenames, dates, per-file MB, and a `Backup now` button.
 - Observed on 2026-05-20: 11 backup files stored, about 2.3 GiB total, with recent archives around 217-221 MiB each.
 - Recommended cron schedule is every 8 hours, about 21 backups total:
@@ -431,7 +431,7 @@ sudo chmod 440 /etc/sudoers.d/northstar-minecraft-backup
 sudo visudo -cf /etc/sudoers.d/northstar-minecraft-backup
 ```
 
-If stopping Minecraft for a long time, make one final backup, stop the container, and comment out the cron line. Otherwise cron will keep creating repeated backups of the same stopped world and will still delete archives older than the retention window.
+If stopping Minecraft for a long time, make one final backup, stop the container, and comment out the cron line. Otherwise cron will keep creating repeated backups of the same stopped world and will still evict the oldest ones once the `MAX_BACKUPS` cap is exceeded.
 
 ### Admin Portal
 
