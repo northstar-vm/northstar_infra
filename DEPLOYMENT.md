@@ -174,21 +174,20 @@ nano .env
 
 Set `OPS` to your exact Minecraft Java username, or leave it blank for first boot. Placeholder usernames can stop startup if the server image tries to resolve them. Leave the real `.env` on the VM only; it is ignored by git.
 
-This server currently uses `ONLINE_MODE=FALSE`. Before opening it to players, keep these plugins installed in `/opt/northstar/apps/minecraft/data/plugins`:
+This server currently uses `ONLINE_MODE=FALSE`. Before opening it to players, keep AuthMe (`/register`, `/login`), SimpleWhitelist (name-based whitelist) and SkinsRestorer (offline-mode skins) installed in `/opt/northstar/apps/minecraft/data/plugins`. The full list of installed plugin jars and worldgen datapack zips, with SHA-256 hashes and sources, is in `apps/minecraft/binaries.sha256`. Worldgen datapacks affect newly generated chunks only.
 
-- `AuthMe-6.0.0-Paper.jar` for `/register` and `/login`.
-- `SimpleWhitelist.jar` for name-based whitelist commands.
-- `SkinsRestorer.jar` for skins in offline mode.
-- `QuickSortX-1.5.jar` for container sorting.
-- `TreeFeller-1.30.1.jar` for safe tree felling.
-- `logblock-1.0.5.jar` for block placement/break history and anti-grief inspection.
+#### Repo-managed Minecraft config
 
-Worldgen/adventure datapacks live in `/opt/northstar/apps/minecraft/data/world/datapacks`:
+`apps/minecraft/server/` mirrors the server's `/data` directory. It holds `bukkit.yml`, `spigot.yml`, `config/paper-*.yml`, the other Bukkit files, plugin config files and the custom datapacks under `world/datapacks/`. The compose file mounts it read-only at `/config` with `COPY_CONFIG_DEST=/data` and `SYNC_SKIP_NEWER_IN_DESTINATION=FALSE`. On every container start, including a plain restart, the image copies these files over `/data` before Paper boots. The copy only adds and overwrites files. It never deletes anything, and files not in the repo are left alone.
 
-- `Katters Structures Only Dungeon.zip` for dungeon structures.
-- `Dungeons and Taverns v5.2.0.zip` for vanilla-like taverns, hideouts, outposts, and dungeons.
+Workflow:
 
-These datapacks affect newly generated chunks only.
+1. Edit the file in `apps/minecraft/server/`, commit and push. The deploy pulls it onto the VM but does not restart Minecraft.
+2. Restart Minecraft when convenient: `docker restart northstar-minecraft` or the admin portal. The change applies then.
+
+Live edits on the VM, or plugin commands that rewrite a tracked config file, are overwritten at the next restart. To keep them, run `scripts/pull-minecraft-config.sh` from a machine with SSH access, review `git diff`, and commit.
+
+Not tracked, on purpose: `server.properties` (generated from compose env vars, and holds the RCON/management secrets), ops, bans and the whitelist JSON, `plugins/SimpleWhitelist/config.yml` (whitelisted names change through commands), player and portal/ship position data, plugin databases and logs, the world itself, and the plugin jars and datapack zips (see `binaries.sha256`). Secrets that a tracked config ever needs should be written as `${CFG_NAME}` placeholders. The image fills them in from env vars set in the VM-only `.env`.
 
 SimpleWhitelist uses the normal whitelist command name:
 

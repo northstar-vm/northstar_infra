@@ -354,8 +354,11 @@ Important runtime choices:
 - `online-mode=false`; AuthMe handles player registration/login.
 - SimpleWhitelist handles name-based whitelist through `/whitelist` commands.
 - MOTD is managed directly in compose as a YAML multiline value; the VM-only `.env` should not set `SERVER_NAME`.
-- Active plugins: AuthMe, SimpleWhitelist, SkinsRestorer, QuickSortX, TreeFeller, LogBlock.
-- Active worldgen/adventure datapacks: `Katters Structures Only Dungeon.zip` and `Dungeons and Taverns v5.2.0.zip`.
+- Server config is repo-managed: `apps/minecraft/server/` mirrors `/data` (bukkit/spigot/paper configs, plugin configs, custom datapacks) and the container copies it over `/data` on every start. Edit config in the repo, not on the VM; live edits are overwritten at the next restart unless pulled back with `scripts/pull-minecraft-config.sh` and committed. Runtime state (world, whitelist names, player data, portal/ship positions, databases) is not tracked. See `DEPLOYMENT.md` → "Repo-managed Minecraft config".
+- Plugin jars and third-party datapack zips are listed with SHA-256 in `apps/minecraft/binaries.sha256`; the deploy script warns on drift.
+- Active plugins: AuthMe, SimpleWhitelist, SkinsRestorer, ChestSorter, TreeFeller, LogBlock, ArmorStandEditor, BlockShips, CompassCoords, CrazyEnchantments, EtherealPortals, ProtocolLib.
+- Active worldgen/adventure datapacks: `Katters Structures Only Dungeons v2.5.zip` and `Dungeons and Taverns v5.3.0.zip`.
+- The End is enabled (`allow-end: true` in `bukkit.yml`).
 - Datapacks affect newly generated chunks only.
 - Server resource pack URL: `https://mc.attentionisallineed.xyz/resourcepacks/northstar-resource-pack.zip`.
 - Resource pack layer order: `Rethoughted GUI` over `Vanilla Experience+` over `spook's tweaks`.
@@ -492,7 +495,7 @@ Infra deployment:
 
 - Every push to `northstar-vm/northstar_infra` `main` runs GitHub Actions and then `/opt/northstar/infra/scripts/deploy-infra.sh` on the VM.
 - The deploy script force-recreates admin, CV, and proxy/Caddy services so frontend and Python changes take effect immediately.
-- Minecraft is intentionally left running with `docker compose up -d --no-recreate`; restart it manually from `/opt/northstar/infra/apps/minecraft` when needed.
+- Minecraft is intentionally left running with `docker compose up -d --no-recreate`; restart it manually from `/opt/northstar/infra/apps/minecraft` when needed. Repo config changes in `apps/minecraft/server/` take effect on that next restart. Changes to the compose file itself (env, volumes) need `docker compose up -d` (recreate), not just a restart.
 
 Manual status checks on the VM:
 

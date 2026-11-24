@@ -1,0 +1,24 @@
+# Binary files on the VM (relative to /opt/northstar/apps/minecraft/data) that are
+# too large or non-redistributable to commit. deploy-infra.sh warns if the live
+# files drift from this list. After installing/updating a jar, refresh it with:
+#   ssh northstar 'cd /opt/northstar/apps/minecraft/data && sha256sum plugins/*.jar world/datapacks/*.zip'
+#
+# Sources (plugins are manual jars, not auto-downloaded, because Paper releases
+# are often newer than several plugins' published builds):
+#   ArmorStandEditor 26.1.2-51 (Modrinth, no 26.2 build yet; runs fine on 26.2)
+#   EtherealPortals 1.2.0-MC26.2 (Modrinth) | ChestSorter 2.1.0-MC26.2 (Modrinth, replaced QuickSortX)
+#   Movecraft dev-build (GitHub Actions artifact, commit b49f891c) - currently .disabled
+dc04545c8472afad0cd8b98bb31f09898d3065d99b3aef9da1cfc6a62c2babf9  plugins/ArmorStandEditor.jar
+58948fcbc697497506257d09d8a7909bf48de6aefe7bec6ba5ab4c41be41b7b8  plugins/AuthMe-6.0.0-Paper.jar
+07d28cd28fcf0ae7e07d1df54dca9e06f616a3b7c2abc7ca5286f48840b5f6f3  plugins/BlockShips-0.0.17.jar
+6e189ef8efed3556cb8aeafee9500d919bacdce8b6c022d54c06206b35a2ecdc  plugins/ChestSorter-2.1.0-MC26.2.jar
+1633024f35bfde4c6be82d6ed351581c8de94daa72a9e018c72f03113eb1b4cb  plugins/CompassCoords-1.1-paper-26.1.2.jar
+15f5f5316857f7080c0e3105ab0778b44e5b2f0d02f0e63f3539f8e7a2e63581  plugins/CrazyEnchantments-2.8.1.jar
+03c27f65f381ee41928bfce88d15933e6b0c85189ca7fff95c98eba127bff39e  plugins/EtherealPortals-1.2.0-MC26.2.jar
+a0a985cca91c94fcb9160fd9cac4c0da1307511e53ebf89c8b75667c31205dde  plugins/ProtocolLib.jar
+d869582bfbf4531fc92358eb6c20635539ee7fa36b377dfd51b0be4e5e0dc790  plugins/SimpleWhitelist.jar
+a85b4a370f988741c9a38f4d0498262edacbf3220314790ac1c127461996359c  plugins/SkinsRestorer.jar
+c0afb7e868c6f255aeb32c6c3b5401c472053830cf6e0fdfcee5320ff7d377d5  plugins/TreeFeller-1.30.1.jar
+688b1b06743f90068e74b92cc0b392d6e5e51b1a4b7dcef5a5b41ab30a8e7ba6  plugins/logblock-1.0.6.jar
+8a591996b09f6c4ba9db8cfe44b68f5f1a808b29a74f7c2c14e2dfbe252ed85e  world/datapacks/Dungeons and Taverns v5.3.0.zip
+88377dc98e801746a0ff20e546a7e9bf9d68ad0ab3478bcdbf12f4f96e6f7470  world/datapacks/Katters Structures Only Dungeons v2.5.zip

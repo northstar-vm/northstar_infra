@@ -1,0 +1,12 @@
+enable: true
+delay: 5
+text: "§6%dir§r | §6X:§r %x §6Y:§r %y §6Z:§r %z"
+directions:
+  north: "N"
+  northeast: "NE"
+  east: "E"
+  southeast: "SE"
+  south: "S"
+  southwest: "SW"
+  west: "W"
+  northwest: "NW"

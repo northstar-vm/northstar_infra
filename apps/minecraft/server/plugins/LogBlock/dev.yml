@@ -1,0 +1,4 @@
+# If enabled, you will be notified when new versions are available
+version-notifier: true
+# Need for testing plugin, do not use on production 
+debug: false

@@ -1,0 +1,254 @@
+# List of global tags:
+# %nl% - Goes to new line.
+# %username% - Replaces the username of the player receiving the message.
+# %displayname% - Replaces the nickname (and colors) of the player receiving the message.
+
+# Registration
+registration:
+    disabled: '&6Registracija yra išjungta'
+    name_taken: '&cVartotojo vardas jau užregistruotas'
+    register_request: '&ePrašome prisiregistruoti: /register slaptažodis pakartotiSlaptažodį'
+    command_usage: '&eNaudojimas: /register slaptažodis pakartotiSlaptažodį'
+    reg_only: '&cTik prisiregistravusiems žaidėjams: apsilankykite: http://example.com tam, kad užsiregistruoti.'
+    success: '&aSėkmingai prisiregistravote.'
+    kicked_admin_registered: 'Administatorius Jus užregistravo. Prisijunkite iš naujo'
+
+# Password errors on registration
+password:
+    match_error: '&cSlaptažodžiai nesutampa'
+    name_in_password: '&cJūs negalite naudoti savo vardo slaptažodyje'
+    unsafe_password: '&cŠį Slaptažodį lengva nulaužti, pasirinkite kitą slaptažodį'
+    forbidden_characters: '&4Jūsų slaptažodis turi netinkamų simbolių. Leidžiami simboliai: %valid_chars'
+    wrong_length: '&cJūsų pasirinktas slaptažodis per ilgas arba per trumpas.'
+
+# Login
+login:
+    command_usage: '&eKomandos panaudojimas: /login slaptažodis'
+    wrong_password: '&cNeteisingas Slaptažosdis'
+    success: '&aSėkmingai prisijungėte'
+    login_request: '&ePrašome prisijungti: /login slaptažodis'
+    timeout_error: '&cNespėjote prisijungti'
+
+# Errors
+error:
+    denied_command: '&cKad galetumėte naudoti šią komandą turite būti prisijungę!'
+    denied_chat: '&cKad galetumėte kalbėti Jūs turite būti prisijungę!'
+    unregistered_user: '&cVartotojas neprisiregistravęs'
+    not_logged_in: '&cJūs neprisijungę!'
+    no_permission: '&cNėra leidimo'
+    unexpected_error: '&cAtsirado klaida, praneškite adminstratoriui.'
+    max_registration: '&cJūs pasiekėte maksimalų registracijų skaičių.'
+    logged_in: '&cTu jau prisijungęs!'
+    kick_for_vip: '&cRėmėjas prisijungė į pilną serverį!'
+    kick_unresolved_hostname: '&cĮvyko klaida su žaidejo adresu!'
+    tempban_max_logins: '&cJūs laikinai užblokuotas, nes kelis kartus neteisingai suvedėte slaptažodį.'
+
+# AntiBot
+antibot:
+    kick_antibot: 'AntiBot prevencija įjungta! Palaukite prieš prisijungiant.'
+    auto_enabled: '&4[AntiBotService] AntiBot prevencija pajungta dėl didelio kiekio prisijungimų!'
+    auto_disabled: '&2[AntiBotService] AntiBot bus išjungtas po %m minučių!'
+
+# Unregister
+unregister:
+    success: '&aSėkmingai išsiregistravote!'
+    command_usage: '&ePanaikinti registraciją: "/unregister slaptažodis"'
+
+# Other messages
+misc:
+    account_not_activated: '&aJūsų vartotojas nėra patvirtintas, pasitikrinkite el.paštą.'
+    password_changed: '&aSlaptažodis pakeistas'
+    logout: '&aSėkmingai atsijungėte'
+    reload: '&aNustatymai ir duomenų bazė buvo perkrauta.'
+    usage_change_password: '&ePanaudojimas: /changepassword senasSlaptažodis naujasSlaptažodis'
+    accounts_owned_self: 'Jūs turite %count paskyrą(-s):'
+    accounts_owned_other: 'Žaidejas %name turi %count paskyrą(-s):'
+
+# Session messages
+session:
+    valid_session: '&aAutomatinis sesijos prisijungimas'
+    invalid_session: '&cSesijos laikai nesutampa. Prašome palaukti kol sesija baigsis.'
+
+# Error messages when joining
+on_join_validation:
+    same_ip_online: 'Žaidejas su tuo pačiu IP adresu jau yra žaidime!'
+    same_nick_online: '&cKažkas šituo vardu jau žaidžia.'
+    name_length: '&cJūsų vardas yra per ilgas arba per trumpas.'
+    characters_in_name: '&cJūsų varde yra neledziamų simbolių. Leidžiami: %valid_chars'
+    kick_full_server: '&cServeris yra pilnas, atsiprašome.'
+    country_banned: '&4Jūsų šalis yra užblokuota šiame serveryje!'
+    not_owner_error: 'J0s nesate šios paskyros savininkas, pasirinkite kitą vardą!'
+    invalid_name_case: 'Turėtumėte prisijungti su vardu %valid, o ne su: %invalid.'
+    quick_command: 'Jūs panaudojote komandą per greitai! Prisijunkite iš naujo ir šiek tiek palaukite prieš naudojant komandas.'
+
+# Email
+email:
+    add_email_request: '&ePrašome jūsų pridėti savo el.paštą : /email add <el.paštas> <el.paštas>'
+    usage_email_add: '&cNaudojimas: /email add <el.paštas> <el.paštas>'
+    usage_email_change: '&cNaudojimas: /email change <senas el.pastas> <naujas el.pastas>'
+    new_email_invalid: '&cNeteisingas el.paštas, bandykite iš naujo!'
+    old_email_invalid: '&cNeteisingas senas el.paštas, bandykite iš naujo!'
+    invalid: '&cNeteisingas el.paštas, bandykite iš naujo!'
+    added: '&2El.paštas sėkmingai pridėtas!'
+    add_not_allowed: '&cNaujo el.pašto pridejimas nėra galimas'
+    request_confirmation: '&cPatvirtinkite savo el.paštą!'
+    changed: '&2El.paštą pakeistas sėkmingai!'
+    change_not_allowed: '&cEl.pašto keitimas nėra galimas'
+    email_show: '&2Jūsų dabartinis el.pašto adresas: &f%email'
+    no_email_for_account: '&2Šiuo metu Jūs neturite pridėję jokio el.pašto adreso.'
+    already_used: '&4Jis el.pašto adresas jau yra naudojamas'
+    incomplete_settings: 'Klaida: Ne visi nustatymai yra nustatyti laiško siuntimui. Susikietite su administratoriumi.'
+    send_failure: 'El.pašto laiškas nebuvo išsiųstas. Susikietite su administratoriumi.'
+    change_password_expired: 'Jūs nebegalite pakeisti savo slaptažodzio naudojant šią komandą.'
+    email_cooldown_error: '&cEl.pašto laiškas jau buvo išsiųstas. Palaukite %time prieš šiunčiant naują.'
+    confirm_code_sent: '&3Patvirtinimo kodas išsiųstas į &f%email&3. Naudok &f/email confirm <code>&3 patvirtinimui.'
+    usage_email_confirm: '&cNaudojimas: /email confirm <code>'
+    confirm_wrong_code: '&cNeteisingas patvirtinimo kodas. Bandykite dar kartą.'
+    confirm_code_expired: '&cLaukiančio el. pašto patvirtinimo nerasta. Pradėkite procesą iš naujo.'
+    confirm_success: '&2El. pašto adresas patvirtintas ir išsaugotas jūsų paskyroje!'
+
+# Password recovery by email
+recovery:
+    forgot_password_hint: '&cPamiršote savo slaptažodį? Rašykite: /email recovery el.paštas'
+    command_usage: '&cNaudojimas: /email recovery el.paštas'
+    email_sent: '&2Laiškas į Jūsų el.pašto adresą buvo išsiųstas!'
+    code:
+        code_sent: 'Kodas slaptažodžio atstatymui buvo išsiųstas į Jūsų el.paštą.'
+        incorrect: 'Kodas neteisingas! Jums liko %count bandymai(-as).'
+        tries_exceeded: 'Jūs išnaudojote visus bandymus. Naudokite "/email recovery el.paštas", kad gauti naują kodą.'
+        correct: 'Kodas įvestas sėkmingai!'
+        change_password: 'Naudokite /email setpassword <Naujas_slaptažodis>, kad pasikeistumėte slaptažodį.'
+
+# Captcha
+captcha:
+    usage_captcha: '&cPanaudojimas: /captcha %captcha_code'
+    wrong_captcha: '&cNeteisinga captcha, naudokite : /captcha %captcha_code'
+    valid_captcha: '&cJūsų captcha teisinga!'
+    captcha_for_registration: 'Kad prisiregistruotumėte turite įvygdyti captchą. Rašykite: /captcha %captcha_code'
+    register_captcha_valid: '&2Captcha teisinga! Galite naudoti /register'
+
+# Verification code
+verification:
+    code_required: '&3Kad galėtumėte naudoti šią komandą turite patvirtinti savo el.pašto adresą! Sekite instrukcijas savo el.pašte.'
+    command_usage: '&cNaudojimas: /verification <kodas>'
+    incorrect_code: '&cNeteisingas kodas, naudokite "/verification <kodas>" įvesdami kodą gautą savo el.pašte'
+    success: '&2Jūsų paskyra patvirtinta! Jūs galite naudoti visas komandas!'
+    already_verified: '&2Jūs jau esate patvirtinę savo paskyrą ir galite naudoti visas komandas!'
+    code_expired: '&3Jūsų kodo galiojimas baigėsi! Panaudokite komandą iš naujo, kad gautumėte naują kodą!'
+    email_needed: '&3Kad patvirtinti savo paskyra turite pridėti el.pašto adresą!'
+
+# Time units
+
+# Dialog UI
+dialog:
+  login:
+    title: '&6Prisijungimas'
+    body: '&7Norėdami tęsti, įveskite savo slaptažodį.'
+    password: '&fSlaptažodis'
+    recovery_email: '&fAtgavimo el. paštas (neprivaloma)'
+    recovery_button: '&ePamiršote slaptažodį?'
+    button: '&aPrisijungti'
+  register:
+    title: '&6Registracija'
+    body: '&7Sukurkite paskyrą, kad galėtumėte žaisti šiame serveryje.'
+    password: '&fSlaptažodis'
+    confirm_password: '&fPatvirtinti slaptažodį'
+    email: '&fEl. paštas'
+    confirm_email: '&fPatvirtinti el. paštą'
+    button: '&aRegistruotis'
+  two_factor:
+    title: '&6Dviejų veiksnių autentifikavimas'
+    body: '&7Atidarykite autentifikavimo programėlę ir įveskite 6 skaitmenų kodą.'
+    code: '&f2FA kodas'
+    button: '&aPatvirtinti'
+  recovery:
+    title: '&6Slaptažodžio atgavimas'
+    body: '&7Įveskite savo registruotą el. pašto adresą ir jums bus išsiųstas atstatymo kodas.'
+    email: '&fEl. pašto adresas'
+    button: '&aSiųsti atgavimo el. laišką'
+
+  button:
+    cancel: '&cAtšaukti'
+
+time:
+    second: 'sekundę'
+    seconds: 'sekundes'
+    minute: 'minutę'
+    minutes: 'minutes'
+    hour: 'valandą'
+    hours: 'valandas'
+    day: 'dieną'
+    days: 'dienas'
+
+# Two-factor authentication
+two_factor:
+    code_created: '&2Jūsų slaptas kodas yra %code. Jį galite nuskenuoti čia: %url'
+    confirmation_required: 'Patvirtinkite savo kodą su: /2fa confirm <kodas>'
+    code_required: 'Patvirkinkite savo kodą su: /2fa code <kodas>'
+    already_enabled: 'Jūs jau turite dviejų faktorių autentifikaciją!'
+    enable_error_no_code: 'Jūs neturite dviejų faktorių autentifikacijos arba ji pasibaigė. Rašykite /2fa add'
+    enable_success: 'Dviejų faktorių autentifikacija sėkmingai įjungta'
+    enable_error_wrong_code: 'Neteisingas arba pasibaigęs kodas. Rašykite /2fa add'
+    not_enabled_error: 'Dviejų faktorių autentifikavimas nėra įjungtas ant jūsų paskyros. Rašykite /2fa add'
+    removed_success: 'Dviejų faktorių autentifikavimas sėkmingai pašalintas iš jūsų paskyros.'
+    invalid_code: 'Neteisingas kodas!'
+
+# Command validation messages
+command:
+    player_only: '&cThis command is only for players.'
+    player_only_alternative: '&cPlayer only! Please use %alternative instead.'
+    failed_to_parse: '&4Failed to parse AuthMe command!'
+    unknown: '&4Unknown command!'
+    incorrect_arguments: '&4Incorrect command arguments!'
+    did_you_mean: '&eDid you mean &6%cmd&e?'
+    see_help: '&eUse the command &6/%cmd&e to view help.'
+    detailed_help: '&6Detailed help: &f/%cmd'
+
+# Admin command messages
+admin:
+    force_login:
+        player_offline: '&cPlayer needs to be online!'
+        forbidden: '&cYou cannot force login the player %name!'
+        success: '&2Force login for %name performed!'
+    accounts:
+        ip_not_found: '&cThis IP does not exist in the database.'
+        single_account: '&2%name is a single account player.'
+        no_last_ip: '&cNo known last IP address for player.'
+    email_show: '&2%name''s email: %email'
+    antibot:
+        status: '&2AntiBot status: %status'
+        override_enabled: '&2AntiBot Manual Override: enabled!'
+        override_disabled: '&2AntiBot Manual Override: disabled!'
+        invalid_mode: '&cInvalid AntiBot mode!'
+    reload:
+        db_type_change: '&eNote: cannot change database type during /authme reload.'
+        error: '&cError occurred during reload of AuthMe.'
+    spawn:
+        set_success: '&2Correctly defined new spawn point.'
+        set_fail: '&cSetSpawn has failed, please retry.'
+        first_set_success: '&2Correctly defined new first spawn point.'
+        first_set_fail: '&cSetFirstSpawn has failed, please retry.'
+        not_defined: '&cSpawn has failed, please try to define the spawn.'
+        first_not_defined: '&cFirst spawn has failed, please try to define the first spawn.'
+
+# Premijų režimas
+premium:
+  feature_disabled: '&cPremijų režimas neįjungtas šiame serveryje.'
+  account_not_found: '&cJūsų vartotojo vardui nerastas joks Minecraft premijų paskyros.'
+  already_enabled: '&ePremijų režimas jau įjungtas jūsų paskyroje.'
+  enable_success: '&2Premijų režimas įjungtas! Jums nebereikės autentifikuotis prisijungiant.'
+  not_enabled: '&ePremijų režimas neįjungtas jūsų paskyroje.'
+  disable_success: '&2Premijų režimas išjungtas. Turėsite vėl autentifikuotis.'
+  error: '&cTikrinant jūsų premijų būseną įvyko klaida. Bandykite vėliau.'
+  admin:
+    not_registered: '&c%name nėra užregistruotas.'
+    already_enabled: '&ePremijų režimas jau įjungtas %name.'
+    account_not_found: '&cMojang paskyra %name nerasta.'
+    enable_success: '&2Premijų režimas įjungtas %name.'
+    not_enabled: '&ePremijų režimas neįjungtas %name.'
+    disable_success: '&2Premijų režimas išjungtas %name.'
+    impostor_kicked: '&eŽaidėjas, prisijungęs kaip %name, turėjo nesutampantį UUID ir buvo išmestas.'
+    kick_reason: '&cJūsų paskyros premijų nustatymai buvo pakeisti administratoriaus. Prisijunkite iš naujo.'
+    pending: '&ePremijų patvirtinimas laukiamas %name. Jie turi prisijungti iš naujo, kad patvirtintų Mojang paskyros nuosavybę.'
+  pending_kick: '&ePremijų patvirtinimas paprašytas. Prisijunkite iš naujo, kad patvirtintumėte savo Mojang paskyros nuosavybę.'
+  pending_fail: '&cPremijų patvirtinimas nepavyko. Prisijunkite naudodami savo slaptažodį.'

@@ -1,0 +1,6 @@
+northstar.default:
+  description: Default player permissions
+  default: true
+  children:
+    treefeller.help: true
+    treefeller.toggle: true

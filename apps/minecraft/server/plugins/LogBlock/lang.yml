@@ -1,0 +1,18 @@
+messages:
+  logmessage: '&8[Log] &7[{date}] &e{player} &7→ &a{action} &6x{count} &7{block_type}'
+  log_header: '&8&m------------&r &bBlock History &8&m------------'
+  no_history: '&cNo history found.'
+items:
+  logitem:
+    title: '&eLog stick'
+    description:
+    - '  '
+    - '&7Right click to see log'
+actions:
+  break: broke
+  place: placed
+  container_add: added
+  container_remove: removed
+  ignite: ignited
+  explode: exploded
+  piston_move: piston-moved

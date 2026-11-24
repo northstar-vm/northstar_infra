@@ -1,0 +1,51 @@
+# =====================================
+# EtherealPortals Configuration
+# =====================================
+
+portal:
+  # Default texture for portal icons (base64 encoded player head texture)
+  # This purple portal texture is used when no custom icon is specified
+  # Used in GUIs, craftable items, and anywhere a portal needs a visual representation
+  defaultTexture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYjBiZmMyNTc3ZjZlMjZjNmM2ZjczNjVjMmM0MDc2YmNjZWU2NTMxMjQ5ODkzODJjZTkzYmNhNGZjOWUzOWIifX19"
+
+  # Portal detection hitbox dimensions (in blocks)
+  # Defines the area around a portal location where players will be detected
+  hitbox:
+    # Width of the hitbox (X-axis)
+    width: 2.0
+    # Depth of the hitbox (Z-axis)
+    depth: 2.0
+    # Height of the hitbox (Y-axis)
+    height: 2.0
+
+  # Teleportation settings
+  teleport:
+    # Cooldown time between teleports (in seconds)
+    # Prevents players from teleporting too frequently
+    cooldownSeconds: 1
+    # Cooldown for displaying the cooldown message (in seconds)
+    # Prevents chat spam when a player is still on cooldown
+    messageCooldownSeconds: 1
+
+  # Portal selection GUI settings
+  gui:
+    # Title of the portal selection inventory (supports color codes)
+    title: "§d§lSelect Portal"
+    # Show coordinates of the destination portal in the GUI
+    show-coordinates: false
+    # Show the world name of the destination portal in the GUI
+    show-world: true
+
+  # Craftable portal items system
+  craftablePortals:
+    # Enable or disable the craftable portal items feature
+    # When enabled, players can obtain portal items to place portals themselves
+    enabled: true
+    # Portal item properties
+    item:
+      # Display name of the portal item (supports color codes)
+      name: "§d§lPortal Crystal"
+      # Lore lines shown on the item (supports color codes)
+      lore:
+        - "§7Place to create a personal portal"
+        - "§7Rename in anvil to customize"
